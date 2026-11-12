@@ -3,7 +3,7 @@ import { Check, ChevronLeft, ClipboardPaste, Link2, Loader, MapPin, Phone, Spark
 import type { Companion, PriceLevel, Restaurant } from '../types';
 import { COMPANIONS, PRICE_LEVELS } from '../types';
 import { ALL_QUICK_TAGS, CAFE_SUGGESTED_TAGS, CATEGORIES, MOOD_TAGS, SUGGESTED_TAGS, isCafeCategory } from '../data/defaults';
-import { newId, priceLevelOf } from '../lib/utils';
+import { newId, onEnter, priceLevelOf } from '../lib/utils';
 import { guessArea, parseShare, type ParsedShare } from '../lib/shareParse';
 import { guessAutoTags, guessCategory } from '../lib/guessCategory';
 import { fetchLinkPreview, isKakaoLink } from '../lib/linkPreview';
@@ -261,7 +261,7 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
           <ChipGroup label="지역" options={areaOptions} value={f.area} onChange={(area) => set({ area })} />
           <div className="mt-2 flex gap-2">
             <input className={input} value={newArea} onChange={(e) => setNewArea(e.target.value)} placeholder="새 지역 추가 (예: 한대앞역)"
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addArea())} />
+              onKeyDown={onEnter(addArea)} />
             <button type="button" onClick={addArea} className="shrink-0 rounded-xl bg-stone-200 px-3 text-sm font-medium">추가</button>
           </div>
         </div>
@@ -303,7 +303,7 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
               className={input}
               value={newMenu}
               onChange={(e) => setNewMenu(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addMenu())}
+              onKeyDown={onEnter(addMenu)}
               placeholder={isCafe ? '예: 아인슈페너, 소금빵' : '예: 마라탕, 꿔바로우'}
             />
             <button type="button" onClick={addMenu} className="shrink-0 rounded-xl bg-stone-200 px-3 text-sm font-medium">추가</button>
@@ -342,7 +342,7 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
           </div>
           <div className="mt-2 flex gap-2">
             <input className={input} value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder="새 태그 (예: 남자친구랑)"
-              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} />
+              onKeyDown={onEnter(addTag)} />
             <button type="button" onClick={addTag} className="shrink-0 rounded-xl bg-stone-200 px-3 text-sm font-medium">추가</button>
           </div>
         </div>

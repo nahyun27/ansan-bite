@@ -89,3 +89,15 @@ export function priceText(r: Pick<Restaurant, 'priceLevel' | 'price'>): string {
 
 /** 메뉴나 가격대가 비어 있으면 정보 보충 필요 */
 export const needsInfo = (r: Pick<Restaurant, 'menus' | 'priceLevel' | 'price'>) => r.menus.length === 0 || priceLevelOf(r) === undefined;
+
+/**
+ * Enter 키 처리. 한글 조합 중의 Enter(isComposing / keyCode 229)는 무시한다.
+ * 안 그러면 조합 중 Enter + 조합 완료 Enter가 두 번 들어와서 마지막 글자가 한 번 더 추가됨 (예: '샤브샤브' + '브').
+ */
+export function onEnter(fn: () => void) {
+  return (e: { key: string; keyCode: number; nativeEvent: KeyboardEvent; preventDefault: () => void }) => {
+    if (e.key !== 'Enter' || e.nativeEvent.isComposing || e.keyCode === 229) return;
+    e.preventDefault();
+    fn();
+  };
+}

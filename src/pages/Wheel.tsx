@@ -3,7 +3,7 @@ import { CircleCheck, Map, Plus, Shuffle, Trash2, X } from 'lucide-react';
 import type { AppData } from '../types';
 import type { Actions } from '../lib/useAppData';
 import { indexAtTop, targetRotation, type WheelCandidate } from '../lib/wheel';
-import { naverMapSearchUrl, newId } from '../lib/utils';
+import { naverMapSearchUrl, newId, onEnter } from '../lib/utils';
 import { StarBadge } from '../components/StarRating';
 
 interface Props {
@@ -219,7 +219,7 @@ export function WheelPage({ data, actions, candidates, setCandidates }: Props) {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && q && !exactMatch && add({ label: q })}
+          onKeyDown={onEnter(() => q && !exactMatch && add({ label: q }))}
           placeholder="내 식당 검색 또는 직접 입력 (예: 편의점)"
           disabled={n >= MAX}
           className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 outline-none focus:border-orange-400 disabled:bg-stone-100"

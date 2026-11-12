@@ -3,7 +3,7 @@ import { Check, ChevronLeft, MapPin, X } from 'lucide-react';
 import type { AppData, AreaCenter, Restaurant } from '../types';
 import { DEFAULT_CENTER_QUERY } from '../data/defaults';
 import { findCenter, isAlreadySaved, parseCategory, placeToRestaurant, searchPlaces, type PlaceResult } from '../lib/places';
-import { distanceMeters, formatDistance, newId } from '../lib/utils';
+import { distanceMeters, formatDistance, newId, onEnter } from '../lib/utils';
 import { Chip, ChipGroup } from './ChipGroup';
 
 interface Props {
@@ -131,7 +131,7 @@ export function KakaoImport({ data, initialArea, onSetCenter, onAdd, onClose }: 
               <div className="flex gap-2">
                 <input className={input} value={centerQuery} onChange={(e) => setCenterQuery(e.target.value)}
                   placeholder={center ? center.label : '예: 한양대학교 ERICA캠퍼스'}
-                  onKeyDown={(e) => e.key === 'Enter' && saveCenter()} />
+                  onKeyDown={onEnter(saveCenter)} />
                 <button onClick={saveCenter} className="shrink-0 rounded-xl bg-stone-200 px-3 text-sm font-medium">찾기</button>
               </div>
             ) : (
@@ -152,7 +152,7 @@ export function KakaoImport({ data, initialArea, onSetCenter, onAdd, onClose }: 
 
           <div className="flex gap-2">
             <input className={input} value={query} onChange={(e) => setQuery(e.target.value)}
-              placeholder="검색어 (비우면 주변 음식점 전체)" onKeyDown={(e) => e.key === 'Enter' && search(1)} />
+              placeholder="검색어 (비우면 주변 음식점 전체)" onKeyDown={onEnter(() => search(1))} />
             <button onClick={() => search(1)} disabled={loading || !center}
               className="shrink-0 rounded-xl bg-orange-500 px-4 text-sm font-bold text-white disabled:opacity-50">
               검색
