@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ClipboardPaste, Link2, Loader, MapPin, Phone, Sparkles, TriangleAlert, X } from 'lucide-react';
+import { Check, ChevronLeft, ClipboardPaste, Coffee, Link2, Loader, MapPin, Phone, Sparkles, TriangleAlert, Utensils, X } from 'lucide-react';
 import type { Companion, PriceLevel, Restaurant } from '../types';
 import { COMPANIONS, PRICE_LEVELS } from '../types';
-import { ALL_QUICK_TAGS, CAFE_SUGGESTED_TAGS, CATEGORIES, MOOD_TAGS, SUGGESTED_TAGS, isCafeCategory } from '../data/defaults';
+import { ALL_QUICK_TAGS, CAFE_CATEGORIES, CAFE_SUGGESTED_TAGS, MEAL_CATEGORIES, MOOD_TAGS, SUGGESTED_TAGS, isCafeCategory } from '../data/defaults';
 import { newId, onEnter, priceLevelOf } from '../lib/utils';
 import { guessArea, parseShare, type ParsedShare } from '../lib/shareParse';
 import { guessAutoTags, guessCategory } from '../lib/guessCategory';
@@ -35,7 +35,8 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
     () => initial ?? { id: newId(), name: '', area: defaultArea, category: '한식', menus: [], goodFor: ['혼밥', '친구랑'], tags: [] },
   );
   /** 음식 종류·메뉴를 직접 고쳤으면 자동 추측이 덮어쓰지 않음 */
-  const touched = useRef({ category: !isNew, menus: !isNew, tags: !isNew });
+  /** kind: 식당/카페를 직접 골랐으면 이름 추측이 종류를 바꾸지 않음 */
+  const touched = useRef({ category: !isNew, menus: !isNew, tags: !isNew, kind: !isNew });
   const [pasteText, setPasteText] = useState('');
   const [pasteResult, setPasteResult] = useState<ParsedShare | null>(null);
   const [guessed, setGuessed] = useState(false);
@@ -59,16 +60,16 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
 
   /** 이름(과 공유 텍스트)으로 음식 종류·메뉴·자동 태그(가볍게/자극적/술집) 추측해서 채우기 */
   const withGuess = (r: Restaurant, extraText?: string): Restaurant => {
-    const g = guessCategory(r.name, extraText);
+    let g = guessCategory(r.name, extraText);
+    // 식당/카페를 직접 골랐으면 다른 종류로 바꾸는 추측은 버림 (예: 카페인데 이름이 '○○국수')
+    if (g && touched.current.kind && isCafeCategory(g.category) !== isCafeCategory(r.category)) g = null;
     setGuessed(!!g && !touched.current.category);
-    const next: Restaurant = !g
-      ? r
-      : {
-          ...r,
-          category: touched.current.category ? r.category : g.category,
-          // 메뉴를 직접 건드리지 않았으면 추측한 메뉴 하나로
-          menus: touched.current.menus ? r.menus : g.menu ? [g.menu] : [],
-        };
+    const next: Restaurant = {
+      ...r,
+      category: g && !touched.current.category ? g.category : r.category,
+      // 메뉴를 직접 건드리지 않았으면 이름이 바뀔 때마다 다시 추측 (추측이 없으면 비움 — 이전 추측이 남지 않게)
+      menus: touched.current.menus ? r.menus : g?.menu ? [g.menu] : [],
+    };
     return withAutoTags(next);
   };
 
@@ -133,7 +134,20 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
       ...allTags.filter((t) => !ALL_QUICK_TAGS.includes(t) && !t.startsWith('도보')),
     ]),
   ];
-  const categoryOptions = CATEGORIES.includes(f.category) ? CATEGORIES : [...CATEGORIES, f.category];
+  const kindCategories = isCafe ? CAFE_CATEGORIES : MEAL_CATEGORIES;
+  const categoryOptions = kindCategories.includes(f.category) ? kindCategories : [...kindCategories, f.category];
+
+  const setKind = (cafe: boolean) => {
+    touched.current.kind = true;
+    if (cafe === isCafe) return;
+    touched.current.category = false; // 새 종류 안에서는 이름으로 다시 추측
+    setF((x) => {
+      const g = guessCategory(x.name);
+      const category = g && isCafeCategory(g.category) === cafe ? g.category : cafe ? '카페' : '한식';
+      setGuessed(!!g && isCafeCategory(g.category) === cafe);
+      return withAutoTags({ ...x, category });
+    });
+  };
 
   const isMood = (t: string) => (MOOD_TAGS as readonly string[]).includes(t);
   const toggleTag = (t: string) => {
@@ -193,7 +207,7 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
           <button type="button" onClick={onClose} className="flex items-center text-sm text-stone-500">
             <ChevronLeft className="size-4" /> 취소
           </button>
-          <h2 className="text-lg font-bold">{initial ? '식당 수정' : '식당 추가'}</h2>
+          <h2 className="text-lg font-bold">{isCafe ? '카페' : '식당'} {initial ? '수정' : '추가'}</h2>
           <span className="w-12" />
         </div>
 
@@ -237,7 +251,30 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
         )}
 
         <div>
-          <label className={label}>식당 이름 *</label>
+          <label className={label}>어떤 곳?</label>
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-stone-200/60 p-1">
+            {[false, true].map((cafe) => {
+              const Icon = cafe ? Coffee : Utensils;
+              const active = isCafe === cafe;
+              return (
+                <button
+                  key={String(cafe)}
+                  type="button"
+                  onClick={() => setKind(cafe)}
+                  aria-pressed={active}
+                  className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-bold ${
+                    active ? 'bg-white text-orange-600 shadow-sm' : 'text-stone-500'
+                  }`}
+                >
+                  <Icon className="size-4" /> {cafe ? '카페·빵집' : '식당'}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div>
+          <label className={label}>{isCafe ? '카페 이름' : '식당 이름'} *</label>
           <input
             className={input}
             value={f.name}
@@ -268,7 +305,7 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
 
         <div>
           <ChipGroup
-            label="음식 종류"
+            label={isCafe ? '종류' : '음식 종류'}
             options={categoryOptions}
             value={f.category}
             onChange={(category) => {
