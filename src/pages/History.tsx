@@ -5,6 +5,7 @@ import type { Actions, Sync } from '../lib/useAppData';
 import { exportFileName, normalizeData, parseAppData } from '../lib/storage';
 import { formatPrice, relativeDay, sortVisitsDesc, toDateStr } from '../lib/utils';
 import { StarRating } from '../components/StarRating';
+import { InstallSection } from '../components/InstallGuide';
 
 export function HistoryPage({ data, actions, sync }: { data: AppData; actions: Actions; sync: Sync }) {
   const isShared = !!sync.nick && sync.status !== 'local';
@@ -190,6 +191,8 @@ export function HistoryPage({ data, actions, sync }: { data: AppData; actions: A
           </button>
         </section>
       )}
+
+      <InstallSection />
 
       <section className="space-y-2 rounded-2xl bg-white p-4 shadow-sm">
         <h2 className="font-bold">백업</h2>

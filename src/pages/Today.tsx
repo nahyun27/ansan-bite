@@ -10,6 +10,7 @@ import { relativeDay, sortVisitsDesc, toDateStr } from '../lib/utils';
 import { ALL_QUICK_TAGS, CAFE_QUICK_TAGS, DEFAULT_AREA, MOOD_TAGS, QUICK_TAGS, isCafeCategory } from '../data/defaults';
 import { Chip, ChipGroup } from '../components/ChipGroup';
 import { StarRating } from '../components/StarRating';
+import { InstallBanner } from '../components/InstallGuide';
 import { RecommendCard } from '../components/RecommendCard';
 
 const PRICE_OPTIONS: (PriceLevel | null)[] = [null, ...PRICE_LEVELS];
@@ -140,6 +141,8 @@ export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel, nick 
         <p className="mt-1 text-2xl font-bold">오늘은 어디서 먹지?</p>
         <p className="mt-1 text-sm text-stone-500">지금 상황에 맞는 안산 맛집 3곳을 골라드려요.</p>
       </header>
+
+      <InstallBanner />
 
       {data.restaurants.length === 0 && (
         <section className="rounded-2xl border-2 border-dashed border-orange-300 bg-white p-5 text-center">
