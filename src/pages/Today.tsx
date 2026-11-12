@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Coffee, Dices, RefreshCw, Sparkles, Utensils, UtensilsCrossed } from 'lucide-react';
+import { Coffee, FerrisWheel, RefreshCw, Sparkles, Utensils, UtensilsCrossed } from 'lucide-react';
+import type { WheelCandidate } from '../lib/wheel';
+import { newId } from '../lib/utils';
 import type { AppData, Companion, PriceLevel } from '../types';
 import { COMPANIONS, PRICE_LEVELS } from '../types';
 import type { Actions } from '../lib/useAppData';
@@ -21,7 +23,15 @@ interface Result {
   notice?: string;
 }
 
-export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; actions: Actions; onAddRestaurant: () => void }) {
+interface Props {
+  data: AppData;
+  actions: Actions;
+  onAddRestaurant: () => void;
+  /** 추천 결과를 돌림판 후보로 넘기고 돌림판 탭으로 */
+  onSendToWheel: (c: WheelCandidate[]) => void;
+}
+
+export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel }: Props) {
   const [cond, setCond] = useState<Conditions>({
     kind: '밥',
     area: data.areas.includes(DEFAULT_AREA) ? DEFAULT_AREA : data.areas[0] ?? '',
@@ -31,12 +41,7 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
   });
   const [result, setResult] = useState<Result | null>(null);
   const [chosen, setChosen] = useState<{ restaurantId: string; visitId: string; date: string } | null>(null);
-  const [spinIdx, setSpinIdx] = useState<number | null>(null);
-  const [pickedId, setPickedId] = useState<string | null>(null);
-  const spinTimer = useRef<number | undefined>(undefined);
   const resultRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => () => window.clearInterval(spinTimer.current), []);
 
   // 지역이 삭제된 경우 대비
   useEffect(() => {
@@ -74,13 +79,6 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
   const updateCond = (patch: Partial<Conditions>) => {
     setCond((c) => ({ ...c, ...patch }));
     setResult(null); // 조건이 바뀌면 이전 결과는 지움 (새 추천은 버튼을 눌러야 생성)
-    setPickedId(null);
-  };
-
-  const resetSpin = () => {
-    window.clearInterval(spinTimer.current);
-    setSpinIdx(null);
-    setPickedId(null);
   };
 
   // 랜덤 점수는 버튼을 누를 때만 새로 만든다
@@ -92,7 +90,6 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
     });
 
   const onRecommend = () => {
-    resetSpin();
     const recs = run(new Set());
     setResult({ recs, shown: new Set(recs.map((x) => x.restaurant.id)) });
     requestAnimationFrame(() => resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
@@ -100,7 +97,6 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
 
   const onAnother = () => {
     if (!result) return;
-    resetSpin();
     let recs = run(result.shown);
     let shown = new Set([...result.shown, ...recs.map((x) => x.restaurant.id)]);
     let notice: string | undefined;
@@ -119,22 +115,8 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
   };
 
   const onPickForMe = () => {
-    if (!result || result.recs.length === 0 || spinIdx !== null) return;
-    setPickedId(null);
-    const n = result.recs.length;
-    const final = Math.floor(Math.random() * n);
-    const totalSteps = n * 3 + final; // 3바퀴 돌고 멈춤
-    let step = 0;
-    setSpinIdx(0);
-    spinTimer.current = window.setInterval(() => {
-      step += 1;
-      setSpinIdx(step % n);
-      if (step >= totalSteps) {
-        window.clearInterval(spinTimer.current);
-        setSpinIdx(null);
-        setPickedId(result.recs[final].restaurant.id);
-      }
-    }, 110);
+    if (!result) return;
+    onSendToWheel(result.recs.map((x) => ({ id: newId(), label: x.restaurant.name, restaurantId: x.restaurant.id })));
   };
 
   const onChoose = (restaurantId: string) => {
@@ -254,8 +236,6 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
                     key={rec.restaurant.id}
                     rec={rec}
                     rank={i + 1}
-                    highlighted={spinIdx === i || pickedId === rec.restaurant.id}
-                    picked={pickedId === rec.restaurant.id}
                     chosen={chosen?.restaurantId === rec.restaurant.id}
                     onChoose={() => onChoose(rec.restaurant.id)}
                     onUndo={onUndo}
@@ -271,10 +251,9 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
                   {result.recs.length > 1 && (
                     <button
                       onClick={onPickForMe}
-                      disabled={spinIdx !== null}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-stone-800 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-stone-800 py-3 text-sm font-semibold text-white"
                     >
-                      <Dices className="size-4" /> 그냥 골라줘
+                      <FerrisWheel className="size-4" /> 돌림판 돌리기
                     </button>
                   )}
                 </div>

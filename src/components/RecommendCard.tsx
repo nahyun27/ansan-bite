@@ -1,4 +1,4 @@
-import { CircleCheck, Map, Target } from 'lucide-react';
+import { CircleCheck, Map } from 'lucide-react';
 import type { Recommendation } from '../lib/recommend';
 import { naverMapSearchUrl, priceText } from '../lib/utils';
 import { StarBadge } from './StarRating';
@@ -6,22 +6,19 @@ import { StarBadge } from './StarRating';
 interface Props {
   rec: Recommendation;
   rank: number;
-  highlighted: boolean;
-  picked: boolean;
   chosen: boolean;
   onChoose: () => void;
   onUndo: () => void;
 }
 
-export function RecommendCard({ rec, rank, highlighted, picked, chosen, onChoose, onUndo }: Props) {
+export function RecommendCard({ rec, rank, chosen, onChoose, onUndo }: Props) {
   const r = rec.restaurant;
   return (
     <article
       className={`rounded-2xl border bg-white p-4 shadow-sm transition-all ${
-        highlighted ? 'scale-[1.02] border-orange-500 ring-4 ring-orange-200' : 'border-stone-200'
+        'border-stone-200'
       }`}
     >
-      {picked && <div className="mb-2 flex items-center gap-1 text-sm font-bold text-orange-600"><Target className="size-4" /> 오늘은 여기로 정했어요!</div>}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs font-semibold text-orange-500">추천 {rank}</div>
