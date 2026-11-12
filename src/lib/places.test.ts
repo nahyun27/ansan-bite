@@ -23,7 +23,7 @@ describe('places', () => {
   it('식당으로 변환: 가격은 비우고 거리 태그·지도 링크를 채움', () => {
     const r = placeToRestaurant(place, '학교 근처', center, 'id1');
     expect(r).toMatchObject({
-      name: '든든국밥', area: '학교 근처', category: '한식', menu: '해장국', tags: ['도보 5분'],
+      name: '든든국밥', area: '학교 근처', category: '한식', menus: ['해장국'], tags: ['도보 5분'],
       mapUrl: place.url, kakaoId: '123', address: '도로명 주소', phone: undefined,
     });
     expect(r.price).toBeUndefined();

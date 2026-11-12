@@ -1,5 +1,8 @@
 export type Rating = 'again' | 'okay' | 'nope';
 export type Companion = '혼밥' | '친구랑' | '데이트';
+export type PriceLevel = '싼 곳' | '보통' | '비싼 곳';
+
+export const PRICE_LEVELS: PriceLevel[] = ['싼 곳', '보통', '비싼 곳'];
 
 export const COMPANIONS: Companion[] = ['혼밥', '친구랑', '데이트'];
 export const RATING_LABEL: Record<Rating, string> = {
@@ -14,8 +17,11 @@ export interface Restaurant {
   /** 자유 문자열 — 사용자가 새 지역을 추가할 수 있음 */
   area: string;
   category: string;
-  menu: string;
-  /** 1인 대략 가격(원). 모르면 비워둠 → 예산 조건에 걸러지지 않고 '보충 필요'로 표시 */
+  /** 대표 메뉴 (여러 개) */
+  menus: string[];
+  /** 가격대. 비우면 price로 계산, 둘 다 없으면 가격 조건에 걸러지지 않고 '보충 필요'로 표시 */
+  priceLevel?: PriceLevel;
+  /** 1인 대략 가격(원), 선택 */
   price?: number;
   goodFor: Companion[];
   tags: string[];
@@ -51,6 +57,8 @@ export interface AppData {
   version: 1;
   areas: string[];
   areaCenters?: Record<string, AreaCenter>;
+  /** 기존 식당에 자동 태그(가볍게/자극적/술집)를 채운 규칙 버전 */
+  autoTagsVersion?: number;
   restaurants: Restaurant[];
   visits: Visit[];
 }

@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Dices, RefreshCw, Sparkles, UtensilsCrossed } from 'lucide-react';
-import type { AppData, Companion } from '../types';
-import { COMPANIONS } from '../types';
+import { Coffee, Dices, RefreshCw, Sparkles, Utensils, UtensilsCrossed } from 'lucide-react';
+import type { AppData, Companion, PriceLevel } from '../types';
+import { COMPANIONS, PRICE_LEVELS } from '../types';
 import type { Actions } from '../lib/useAppData';
-import { makeJitter, recommend, type Conditions, type Recommendation } from '../lib/recommend';
+import { makeJitter, recommend, type Conditions, type Kind, type Recommendation } from '../lib/recommend';
 import { relativeDay, sortVisitsDesc, toDateStr } from '../lib/utils';
-import { DEFAULT_AREA } from '../data/defaults';
+import { ALL_QUICK_TAGS, CAFE_QUICK_TAGS, DEFAULT_AREA, MOOD_TAGS, QUICK_TAGS, isCafeCategory } from '../data/defaults';
 import { Chip, ChipGroup } from '../components/ChipGroup';
 import { RatingButtons } from '../components/RatingButtons';
 import { RecommendCard } from '../components/RecommendCard';
 
-const BUDGETS = [10000, 15000, 20000, null] as const;
-const budgetLabel = (b: number | null) => (b === null ? '상관없음' : `${b / 10000}만 원`);
+const PRICE_OPTIONS: (PriceLevel | null)[] = [null, ...PRICE_LEVELS];
+const priceLabel = (p: PriceLevel | null) => p ?? '상관없음';
+const isMood = (t: string) => (MOOD_TAGS as readonly string[]).includes(t);
 
 interface Result {
   recs: Recommendation[];
@@ -22,9 +23,10 @@ interface Result {
 
 export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; actions: Actions; onAddRestaurant: () => void }) {
   const [cond, setCond] = useState<Conditions>({
+    kind: '밥',
     area: data.areas.includes(DEFAULT_AREA) ? DEFAULT_AREA : data.areas[0] ?? '',
     companion: '혼밥',
-    budget: 10000,
+    priceLevel: null,
     tags: [],
   });
   const [result, setResult] = useState<Result | null>(null);
@@ -41,15 +43,25 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
     if (!data.areas.includes(cond.area) && data.areas.length) setCond((c) => ({ ...c, area: data.areas[0] }));
   }, [data.areas, cond.area]);
 
+  // 밥: 가볍게·자극적·술집 / 카페: 공부용·수다용·디저트용 이 항상 맨 앞, 그 뒤로 이 지역에 많이 붙은 태그
   const tagOptions = useMemo(() => {
+    const quick = cond.kind === '카페' ? CAFE_QUICK_TAGS : QUICK_TAGS;
     const count = new Map<string, number>();
     data.restaurants
-      .filter((r) => r.area === cond.area)
+      .filter((r) => r.area === cond.area && isCafeCategory(r.category) === (cond.kind === '카페'))
       .flatMap((r) => r.tags)
-      .filter((t) => !t.startsWith('도보'))
+      .filter((t) => !t.startsWith('도보') && !ALL_QUICK_TAGS.includes(t))
       .forEach((t) => count.set(t, (count.get(t) ?? 0) + 1));
-    return [...count.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t).slice(0, 8);
-  }, [data.restaurants, cond.area]);
+    const others = [...count.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t).slice(0, 6);
+    return [...quick, ...others];
+  }, [data.restaurants, cond.area, cond.kind]);
+
+  const toggleTag = (t: string) => {
+    if (cond.tags.includes(t)) return updateCond({ tags: cond.tags.filter((x) => x !== t) });
+    // 가볍게 ↔ 자극적은 동시에 고를 수 없음
+    const rest = isMood(t) ? cond.tags.filter((x) => !isMood(x)) : cond.tags;
+    updateCond({ tags: [...rest, t] });
+  };
 
   // 어제 이전 방문 중 아직 평가 안 한 가장 최근 것
   const today = toDateStr();
@@ -172,6 +184,22 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
       )}
 
       <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
+        <div className="grid grid-cols-2 gap-1 rounded-xl bg-stone-100 p-1">
+          {(['밥', '카페'] as Kind[]).map((k) => {
+            const Icon = k === '밥' ? Utensils : Coffee;
+            return (
+              <button
+                key={k}
+                onClick={() => updateCond({ kind: k, tags: [] })}
+                className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-bold ${
+                  cond.kind === k ? 'bg-white text-orange-600 shadow-sm' : 'text-stone-500'
+                }`}
+              >
+                <Icon className="size-4" /> {k === '밥' ? '밥' : '카페·빵집'}
+              </button>
+            );
+          })}
+        </div>
         <ChipGroup label="어디서 먹어?" options={data.areas} value={cond.area} onChange={(area) => updateCond({ area })} />
         <ChipGroup<Companion>
           label="누구랑?"
@@ -179,33 +207,25 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
           value={cond.companion}
           onChange={(companion) => updateCond({ companion })}
         />
-        <ChipGroup<number | null>
-          label="얼마까지?"
-          options={BUDGETS}
-          value={cond.budget}
-          onChange={(budget) => updateCond({ budget })}
-          render={budgetLabel}
+        <ChipGroup<PriceLevel | null>
+          label="가격대?"
+          options={PRICE_OPTIONS}
+          value={cond.priceLevel}
+          onChange={(priceLevel) => updateCond({ priceLevel })}
+          render={priceLabel}
         />
-        {tagOptions.length > 0 && (
-          <div>
-            <div className="mb-1.5 text-sm font-semibold text-stone-500">
-              오늘은? <span className="font-normal text-stone-400">(선택)</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {tagOptions.map((t) => (
-                <Chip
-                  key={t}
-                  active={cond.tags.includes(t)}
-                  onClick={() =>
-                    updateCond({ tags: cond.tags.includes(t) ? cond.tags.filter((x) => x !== t) : [...cond.tags, t] })
-                  }
-                >
-                  {t}
-                </Chip>
-              ))}
-            </div>
+        <div>
+          <div className="mb-1.5 text-sm font-semibold text-stone-500">
+            오늘은? <span className="font-normal text-stone-400">(고르면 그 태그가 붙은 곳만)</span>
           </div>
-        )}
+          <div className="flex flex-wrap gap-2">
+            {tagOptions.map((t) => (
+              <Chip key={t} active={cond.tags.includes(t)} onClick={() => toggleTag(t)}>
+                {t}
+              </Chip>
+            ))}
+          </div>
+        </div>
         <button
           onClick={onRecommend}
           className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-orange-500 py-3.5 text-base font-bold text-white shadow-md shadow-orange-200 active:bg-orange-600"
@@ -221,7 +241,7 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
             {result.notice && <p className="text-sm text-stone-500">{result.notice}</p>}
             {result.recs.length === 0 ? (
               <p className="rounded-2xl bg-white p-6 text-center text-sm text-stone-500">
-                조건에 맞는 곳이 없어요.<br />예산이나 동네를 바꾸거나, <b>내 식당</b>에서 식당을 추가해 보세요.
+                조건에 맞는 곳이 없어요.<br />가격대·태그를 풀거나 동네를 바꾸거나, <b>내 식당</b>에서 식당을 추가해 보세요.
               </p>
             ) : (
               <>

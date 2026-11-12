@@ -47,14 +47,18 @@ const CATEGORY_MAP: Record<string, string> = {
   분식: '분식',
   아시아음식: '아시안',
   패스트푸드: '양식',
-  간식: '카페·디저트',
+  간식: '디저트',
+  제과: '빵집',
+  베이커리: '빵집',
 };
 
 /** "음식점 > 한식 > 해장국" → { category: '한식', detail: '해장국' } */
 export function parseCategory(categoryName: string): { category: string; detail: string } {
   const parts = categoryName.split('>').map((s) => s.trim());
   const main = parts[1] ?? '';
-  return { category: CATEGORY_MAP[main] ?? '기타', detail: parts.length >= 3 ? parts[parts.length - 1] : '' };
+  const detail = parts.length >= 3 ? parts[parts.length - 1] : '';
+  if (parts[0] === '카페') return { category: /제과|베이커리/.test(categoryName) ? '빵집' : '카페', detail };
+  return { category: CATEGORY_MAP[main] ?? '기타', detail };
 }
 
 /** 직선거리 기준 도보 태그 (분당 약 80m) */
@@ -73,7 +77,7 @@ export function placeToRestaurant(place: PlaceResult, area: string, center: Area
     name: place.name,
     area,
     category,
-    menu: detail, // 카카오 세부 분류(예: 해장국)를 대표 메뉴 초안으로
+    menus: detail ? [detail] : [], // 카카오 세부 분류(예: 해장국)를 대표 메뉴 초안으로
     goodFor: ['혼밥', '친구랑'],
     tags: tag ? [tag] : [],
     mapUrl: place.url,

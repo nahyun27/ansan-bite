@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ClipboardPaste, Link2, Loader, MapPin, Phone, Sparkles, TriangleAlert } from 'lucide-react';
-import type { Companion, Restaurant } from '../types';
-import { COMPANIONS } from '../types';
-import { CATEGORIES, SUGGESTED_TAGS } from '../data/defaults';
-import { newId } from '../lib/utils';
+import { Check, ChevronLeft, ClipboardPaste, Link2, Loader, MapPin, Phone, Sparkles, TriangleAlert, X } from 'lucide-react';
+import type { Companion, PriceLevel, Restaurant } from '../types';
+import { COMPANIONS, PRICE_LEVELS } from '../types';
+import { ALL_QUICK_TAGS, CAFE_SUGGESTED_TAGS, CATEGORIES, MOOD_TAGS, SUGGESTED_TAGS, isCafeCategory } from '../data/defaults';
+import { newId, priceLevelOf } from '../lib/utils';
 import { guessArea, parseShare, type ParsedShare } from '../lib/shareParse';
-import { guessCategory } from '../lib/guessCategory';
+import { guessAutoTags, guessCategory } from '../lib/guessCategory';
 import { fetchLinkPreview, isKakaoLink } from '../lib/linkPreview';
 import { Chip, ChipGroup } from './ChipGroup';
 
@@ -31,10 +31,10 @@ const label = 'mb-1.5 block text-sm font-semibold text-stone-500';
 export function RestaurantForm({ initial, areas, allTags, defaultArea, existing, pasteFirst, initialShare, onSave, onDelete, onClose }: Props) {
   const isNew = !initial;
   const [f, setF] = useState<Restaurant>(
-    () => initial ?? { id: newId(), name: '', area: defaultArea, category: '한식', menu: '', goodFor: ['혼밥', '친구랑'], tags: [] },
+    () => initial ?? { id: newId(), name: '', area: defaultArea, category: '한식', menus: [], goodFor: ['혼밥', '친구랑'], tags: [] },
   );
   /** 음식 종류·메뉴를 직접 고쳤으면 자동 추측이 덮어쓰지 않음 */
-  const touched = useRef({ category: !isNew, menu: !isNew });
+  const touched = useRef({ category: !isNew, menus: !isNew, tags: !isNew });
   const [pasteText, setPasteText] = useState('');
   const [pasteResult, setPasteResult] = useState<ParsedShare | null>(null);
   const [guessed, setGuessed] = useState(false);
@@ -44,6 +44,7 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
   const [areaOptions, setAreaOptions] = useState(areas);
   const [newArea, setNewArea] = useState('');
   const [newTag, setNewTag] = useState('');
+  const [newMenu, setNewMenu] = useState('');
   const [error, setError] = useState('');
 
   // 폼이 열려 있는 동안 뒤쪽 페이지 스크롤 잠금
@@ -55,16 +56,26 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
 
   const set = (patch: Partial<Restaurant>) => setF((x) => ({ ...x, ...patch }));
 
-  /** 이름(과 공유 텍스트)으로 음식 종류·메뉴 추측해서 채우기 */
+  /** 이름(과 공유 텍스트)으로 음식 종류·메뉴·자동 태그(가볍게/자극적/술집) 추측해서 채우기 */
   const withGuess = (r: Restaurant, extraText?: string): Restaurant => {
     const g = guessCategory(r.name, extraText);
     setGuessed(!!g && !touched.current.category);
-    if (!g) return r;
-    return {
-      ...r,
-      category: touched.current.category ? r.category : g.category,
-      menu: touched.current.menu || r.menu ? r.menu : g.menu ?? '',
-    };
+    const next: Restaurant = !g
+      ? r
+      : {
+          ...r,
+          category: touched.current.category ? r.category : g.category,
+          // 메뉴를 직접 건드리지 않았으면 추측한 메뉴 하나로
+          menus: touched.current.menus ? r.menus : g.menu ? [g.menu] : [],
+        };
+    return withAutoTags(next);
+  };
+
+  /** 자동 태그(가볍게/자극적/술집, 카페 용도)는 이름·분류가 바뀔 때마다 다시 계산. 태그를 직접 건드렸으면 그대로 */
+  const withAutoTags = (r: Restaurant): Restaurant => {
+    if (touched.current.tags) return r;
+    const auto = guessAutoTags(r.name, r.menus.join(' '), r.category);
+    return { ...r, tags: [...auto, ...r.tags.filter((t) => !ALL_QUICK_TAGS.includes(t))] };
   };
 
   const onPaste = async (text: string) => {
@@ -112,10 +123,25 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
       r.id !== f.id &&
       ((f.kakaoId && r.kakaoId === f.kakaoId) || (f.mapUrl && r.mapUrl === f.mapUrl) || (f.name.trim() && r.name === f.name.trim())),
   );
-  const tagOptions = [...new Set([...SUGGESTED_TAGS, ...allTags, ...f.tags])];
+  const isCafe = isCafeCategory(f.category);
+  // 분류에 맞는 추천 태그가 맨 앞 (밥집: 가볍게·자극적·술집 / 카페: 공부용·수다용·디저트용)
+  const tagOptions = [
+    ...new Set([
+      ...(isCafe ? CAFE_SUGGESTED_TAGS : SUGGESTED_TAGS),
+      ...f.tags,
+      ...allTags.filter((t) => !ALL_QUICK_TAGS.includes(t) && !t.startsWith('도보')),
+    ]),
+  ];
   const categoryOptions = CATEGORIES.includes(f.category) ? CATEGORIES : [...CATEGORIES, f.category];
 
-  const toggleTag = (t: string) => set({ tags: f.tags.includes(t) ? f.tags.filter((x) => x !== t) : [...f.tags, t] });
+  const isMood = (t: string) => (MOOD_TAGS as readonly string[]).includes(t);
+  const toggleTag = (t: string) => {
+    touched.current.tags = true;
+    if (f.tags.includes(t)) return set({ tags: f.tags.filter((x) => x !== t) });
+    // 가볍게 ↔ 자극적은 하나만
+    set({ tags: [...(isMood(t) ? f.tags.filter((x) => !isMood(x)) : f.tags), t] });
+  };
+  const currentLevel = priceLevelOf(f);
 
   const addArea = () => {
     const a = newArea.trim();
@@ -123,6 +149,20 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
     if (!areaOptions.includes(a)) setAreaOptions([...areaOptions, a]);
     set({ area: a });
     setNewArea('');
+  };
+
+  const addMenu = () => {
+    // 쉼표로 여러 개 한 번에 입력 가능
+    const items = newMenu.split(/[,，、]/).map((m) => m.trim()).filter((m) => m && !f.menus.includes(m));
+    if (items.length) {
+      touched.current.menus = true;
+      setF((x) => withAutoTags({ ...x, menus: [...x.menus, ...items] }));
+    }
+    setNewMenu('');
+  };
+  const removeMenu = (m: string) => {
+    touched.current.menus = true;
+    set({ menus: f.menus.filter((x) => x !== m) });
   };
 
   const addTag = () => {
@@ -138,7 +178,7 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
     onSave({
       ...f,
       name: f.name.trim(),
-      menu: f.menu.trim(),
+      menus: [...f.menus, ...newMenu.split(/[,，、]/).map((m) => m.trim()).filter(Boolean)].filter((m, i, a) => a.indexOf(m) === i),
       mapUrl: f.mapUrl?.trim() || undefined,
       memo: f.memo?.trim() || undefined,
       price: f.price && f.price > 0 ? f.price : undefined,
@@ -228,7 +268,7 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
             onChange={(category) => {
               touched.current.category = true;
               setGuessed(false);
-              set({ category });
+              setF((x) => withAutoTags({ ...x, category }));
             }}
           />
           {guessed && (
@@ -238,23 +278,45 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
           )}
         </div>
 
-        <div className="grid grid-cols-[1fr_8rem] gap-3">
-          <div>
-            <label className={label}>대표 메뉴</label>
+        <div>
+          <label className={label}>대표 메뉴 <span className="font-normal text-stone-400">(여러 개 가능)</span></label>
+          {f.menus.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {f.menus.map((m) => (
+                <span key={m} className="flex items-center gap-1 rounded-full bg-orange-100 py-1 pr-1.5 pl-3 text-sm text-orange-800">
+                  {m}
+                  <button type="button" onClick={() => removeMenu(m)} aria-label={`${m} 빼기`} className="rounded-full p-0.5 active:bg-orange-200">
+                    <X className="size-3.5" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex gap-2">
             <input
               className={input}
-              value={f.menu}
-              onChange={(e) => {
-                touched.current.menu = true;
-                set({ menu: e.target.value });
-              }}
-              placeholder="예: 순대국밥"
+              value={newMenu}
+              onChange={(e) => setNewMenu(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addMenu())}
+              placeholder={isCafe ? '예: 아인슈페너, 소금빵' : '예: 마라탕, 꿔바로우'}
             />
+            <button type="button" onClick={addMenu} className="shrink-0 rounded-xl bg-stone-200 px-3 text-sm font-medium">추가</button>
           </div>
-          <div>
-            <label className={label}>1인 가격(원)</label>
-            <input className={input} type="number" inputMode="numeric" step={500} min={0} value={f.price ?? ''} placeholder="몰라도 OK"
+        </div>
+
+        <div>
+          <ChipGroup<PriceLevel>
+            label="가격대"
+            options={PRICE_LEVELS}
+            value={currentLevel ?? []}
+            onChange={(lv) => set({ priceLevel: f.priceLevel === lv ? undefined : lv })}
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <input className={input + ' w-36'} type="number" inputMode="numeric" step={500} min={0} value={f.price ?? ''} placeholder="1인 가격(원)"
               onChange={(e) => set({ price: e.target.value === '' ? undefined : Number(e.target.value) })} />
+            <span className="text-xs text-stone-400">
+              {f.price !== undefined && !f.priceLevel ? '가격으로 가격대를 정했어요' : '정확한 가격은 몰라도 OK'}
+            </span>
           </div>
         </div>
 

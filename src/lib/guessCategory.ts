@@ -7,6 +7,8 @@
 type Rule = [keywords: string[], category: string, menu?: string];
 
 const RULES: Rule[] = [
+  // 빵집을 맨 앞에: '베이커리'에 '커리'가 들어 있어서 카레보다 먼저 봐야 함
+  [['베이커리', 'bakery', '제과', '빵집', '베이글', '크루아상', '소금빵', '식빵', '파티스리', '불랑제리', '빵'], '빵집', '빵'],
   // 한식 — 국물/탕
   [['순대국', '순댓국'], '한식', '순대국밥'],
   [['뼈해장', '감자탕'], '한식', '감자탕'],
@@ -82,10 +84,9 @@ const RULES: Rule[] = [
   // 기타
   [['치킨', '통닭'], '기타', '치킨'],
   [['포차', '호프', '주점', '술집'], '기타', '술집'],
-  // 카페·디저트
-  [['베이커리', '빵', '제과'], '카페·디저트', '빵'],
-  [['디저트', '케이크', '와플', '빙수', '도넛', '마카롱'], '카페·디저트', '디저트'],
-  [['카페', '커피', 'coffee', 'cafe'], '카페·디저트', '커피'],
+  // 카페·빵집 (카페 이름에 '빵'이 들어가도 빵집으로 보는 게 대체로 맞음)
+  [['디저트', '케이크', '와플', '빙수', '도넛', '마카롱', '타르트', '젤라또', '아이스크림'], '디저트', '디저트'],
+  [['카페', '커피', 'coffee', 'cafe', '로스터리', '로스터스', 'roasters', '다방', '티하우스', '찻집'], '카페', '커피'],
 ];
 
 export interface CategoryGuess {
@@ -103,4 +104,43 @@ export function guessCategory(...texts: (string | undefined)[]): CategoryGuess |
     }
   }
   return null;
+}
+
+/** 이름·메뉴로 '가볍게' / '자극적' 추측. 자극적인 단어가 우선 (예: '매운 김밥' → 자극적) */
+const SPICY = ['마라', '떡볶이', '떡볶기', '라볶이', '짬뽕', '불닭', '닭발', '매운', '매콤', '쭈꾸미', '쭈삼', '낙곱새', '곱창', '막창', '아구찜', '아귀찜', '짚신', '엽떡', '훠궈', '김치찌개', '부대찌개', '감자탕', '뼈해장', '닭볶음', '제육', '똠얌', '불족발', '양꼬치'];
+const LIGHT = ['샐러드', '포케', '샌드위치', '서브웨이', '김밥', '죽', '쌀국수', '분짜', '반미', '우동', '소바', '토스트', '베이커리', '빵', '카페', '커피', '브런치', '칼국수', '수제비', '국수', '냉면', '밀면', '백반', '비빔밥', '초밥', '스시', '샤브', '덮밥', '포케'];
+
+export type MoodTag = '가볍게' | '자극적';
+
+export function guessMood(...texts: (string | undefined)[]): MoodTag | null {
+  const hay = texts.filter(Boolean).join(' ').replace(/\s+/g, '');
+  if (!hay) return null;
+  if (SPICY.some((k) => hay.includes(k))) return '자극적';
+  if (LIGHT.some((k) => (k.length === 1 ? hay.endsWith(k) : hay.includes(k)))) return '가볍게';
+  return null;
+}
+
+const DRINK = ['포차', '포장마차', '호프', '주점', '술집', '이자카야', '선술집', '와인바', '와인', '맥주', '비어', 'beer', 'pub', '펍', '막걸리', '전집', '하이볼', '칵테일', '요리주점', '실내포차'];
+
+/** 이름으로 술집 여부 추측 */
+export function guessDrink(...texts: (string | undefined)[]): boolean {
+  const hay = texts.filter(Boolean).join(' ').replace(/\s+/g, '').toLowerCase();
+  return !!hay && DRINK.some((k) => hay.includes(k.toLowerCase()));
+}
+
+/** 이름·메뉴로 자동으로 붙일 태그. 밥집: 가볍게/자극적·술집, 카페·빵집: 공부용/디저트용
+ *  menu: 메뉴 여러 개를 공백으로 이은 문자열 */
+export function guessAutoTags(name: string, menu?: string, category?: string): string[] {
+  if (category === '카페' || category === '빵집' || category === '디저트') {
+    const hay = `${name} ${menu ?? ''}`;
+    const tags: string[] = [];
+    if (/스터디|study|북카페|공부/i.test(hay)) tags.push('공부용');
+    if (category !== '카페' || /디저트|케이크|빙수|와플|마카롱|타르트|빵/.test(hay)) tags.push('디저트용');
+    return tags;
+  }
+  const tags: string[] = [];
+  const mood = guessMood(name, menu);
+  if (mood) tags.push(mood);
+  if (guessDrink(name, menu)) tags.push('술집');
+  return tags;
 }

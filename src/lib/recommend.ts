@@ -1,11 +1,16 @@
-import type { AppData, Companion, Restaurant } from '../types';
-import { currentRating, daysBetween, lastVisitDate, sortVisitsDesc } from './utils';
+import type { AppData, Companion, PriceLevel, Restaurant } from '../types';
+import { currentRating, daysBetween, lastVisitDate, priceLevelOf, sortVisitsDesc } from './utils';
+import { isCafeCategory } from '../data/defaults';
+
+export type Kind = '밥' | '카페';
 
 export interface Conditions {
+  /** 밥이면 카페·빵집·디저트 제외, 카페면 그것만 */
+  kind: Kind;
   area: string;
   companion: Companion;
   /** null = 상관없음 */
-  budget: number | null;
+  priceLevel: PriceLevel | null;
   tags: string[];
 }
 
@@ -45,8 +50,10 @@ export function filterCandidates(data: AppData, c: Conditions): Restaurant[] {
   return data.restaurants.filter(
     (r) =>
       r.area === c.area &&
-      (c.budget === null || r.price === undefined || r.price <= c.budget) &&
+      isCafeCategory(r.category) === (c.kind === '카페') &&
+      (c.priceLevel === null || priceLevelOf(r) === undefined || priceLevelOf(r) === c.priceLevel) &&
       r.goodFor.includes(c.companion) &&
+      c.tags.every((t) => r.tags.includes(t)) &&
       currentRating(r.id, data.visits) !== 'nope',
   );
 }
@@ -106,7 +113,6 @@ export function recommend(data: AppData, c: Conditions, opts: RecommendOptions):
 
       if (r.tags.includes('도보 5분')) reasons.push([4, '걸어서 5분이면 가요.']);
       reasons.push([3, COMPANION_REASON[c.companion]]);
-      if (c.budget !== null && r.price !== undefined && r.price <= c.budget * 0.7) reasons.push([2, '예산보다 여유 있어요.']);
 
       return {
         restaurant: r,

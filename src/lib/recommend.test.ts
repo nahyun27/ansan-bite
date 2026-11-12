@@ -4,13 +4,13 @@ import { filterCandidates, recommend, type Conditions } from './recommend';
 import { currentRating, formatPrice } from './utils';
 
 const r = (id: string, over: Partial<Restaurant> = {}): Restaurant => ({
-  id, name: id, area: '학교 근처', category: '한식', menu: '', price: 9000,
+  id, name: id, area: '학교 근처', category: '한식', menus: [], price: 9000,
   goodFor: ['혼밥', '친구랑'], tags: [], ...over,
 });
 const data = (restaurants: Restaurant[], visits: Visit[] = []): AppData => ({
   version: 1, areas: ['학교 근처', '중앙역'], restaurants, visits,
 });
-const cond: Conditions = { area: '학교 근처', companion: '혼밥', budget: 10000, tags: [] };
+const cond: Conditions = { kind: '밥', area: '학교 근처', companion: '혼밥', priceLevel: '싼 곳', tags: [] };
 const TODAY = '2026-11-12';
 const noJitter = { today: TODAY, jitter: {} };
 
@@ -27,10 +27,22 @@ describe('filterCandidates', () => {
       [{ id: 'v1', restaurantId: 'nope', date: '2026-10-01', rating: 'nope' }],
     );
     expect(filterCandidates(d, cond).map((x) => x.id)).toEqual(['ok']);
-    expect(filterCandidates(d, { ...cond, budget: null }).map((x) => x.id)).toEqual(['ok', 'expensive']);
+    expect(filterCandidates(d, { ...cond, priceLevel: null }).map((x) => x.id)).toEqual(['ok', 'expensive']);
   });
 
-  it('가격을 모르는 곳은 예산으로 걸러내지 않는다', () => {
+  it('밥/카페 구분', () => {
+    const d = data([r('rice'), r('cafe', { category: '카페' }), r('bread', { category: '빵집' })]);
+    expect(filterCandidates(d, cond).map((x) => x.id)).toEqual(['rice']);
+    expect(filterCandidates(d, { ...cond, kind: '카페' }).map((x) => x.id)).toEqual(['cafe', 'bread']);
+  });
+
+  it('가격대: 직접 고른 값이 가격보다 우선', () => {
+    const d = data([r('date', { price: undefined, priceLevel: '비싼 곳' }), r('cheap', { price: 7000 }), r('mid', { price: 15000 })]);
+    expect(filterCandidates(d, { ...cond, priceLevel: '비싼 곳' }).map((x) => x.id)).toEqual(['date']);
+    expect(filterCandidates(d, { ...cond, priceLevel: '보통' }).map((x) => x.id)).toEqual(['mid']);
+  });
+
+  it('가격을 모르는 곳은 가격대로 걸러내지 않는다', () => {
     const d = data([r('unknown', { price: undefined })]);
     expect(filterCandidates(d, cond).map((x) => x.id)).toEqual(['unknown']);
   });
@@ -77,11 +89,11 @@ describe('recommend', () => {
     expect(recommend(d, cond, noJitter)[0].restaurant.id).toBe('y');
   });
 
-  it('선택한 태그가 붙은 곳에 가산점', () => {
-    const d = data([r('a'), r('b', { tags: ['비 오는 날'] })]);
-    const res = recommend(d, { ...cond, tags: ['비 오는 날'] }, noJitter);
-    expect(res[0].restaurant.id).toBe('b');
-    expect(res[0].reasons[0]).toContain('비 오는 날');
+  it('고른 태그가 붙은 곳만 추천', () => {
+    const d = data([r('a'), r('b', { tags: ['가볍게'] }), r('c', { tags: ['자극적'] })]);
+    const res = recommend(d, { ...cond, tags: ['가볍게'] }, noJitter);
+    expect(res.map((x) => x.restaurant.id)).toEqual(['b']);
+    expect(res[0].reasons[0]).toContain('가볍게');
   });
 
   it('exclude에 있는 곳은 빠진다', () => {

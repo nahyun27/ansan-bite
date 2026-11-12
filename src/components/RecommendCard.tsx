@@ -1,6 +1,6 @@
 import { CircleCheck, Map, Target } from 'lucide-react';
 import type { Recommendation } from '../lib/recommend';
-import { formatPrice, naverMapSearchUrl } from '../lib/utils';
+import { naverMapSearchUrl, priceText } from '../lib/utils';
 
 interface Props {
   rec: Recommendation;
@@ -26,7 +26,7 @@ export function RecommendCard({ rec, rank, highlighted, picked, chosen, onChoose
           <div className="text-xs font-semibold text-orange-500">추천 {rank}</div>
           <h3 className="truncate text-lg font-bold">{r.name}</h3>
           <p className="text-sm text-stone-500">
-            {r.category} · {r.menu} · {formatPrice(r.price)}
+            {r.category}{r.menus.length > 0 && ` · ${r.menus.slice(0, 3).join(', ')}`} · {priceText(r)}
           </p>
         </div>
       </div>

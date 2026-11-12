@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { AppData } from '../types';
 import type { Actions } from '../lib/useAppData';
-import { exportFileName, parseAppData } from '../lib/storage';
+import { exportFileName, normalizeData, parseAppData } from '../lib/storage';
 import { formatPrice, relativeDay, sortVisitsDesc, toDateStr } from '../lib/utils';
 import { RatingButtons } from '../components/RatingButtons';
 
@@ -47,7 +47,7 @@ export function HistoryPage({ data, actions }: { data: AppData; actions: Actions
     const parsed = parseAppData(await file.text());
     if (!parsed) return setMessage('Ansan Bite 백업 파일이 아니거나 형식이 깨졌어요.');
     if (confirm(`식당 ${parsed.restaurants.length}곳, 기록 ${parsed.visits.length}개로 지금 데이터를 바꿀까요?`)) {
-      actions.replaceData(parsed);
+      actions.replaceData(normalizeData(parsed));
       setMessage('백업을 불러왔어요.');
     }
   };

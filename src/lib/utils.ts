@@ -1,4 +1,4 @@
-import type { Rating, Visit } from '../types';
+import type { PriceLevel, Rating, Restaurant, Visit } from '../types';
 
 export function newId(): string {
   // crypto.randomUUID는 https/localhost에서만 동작 → LAN 테스트 대비 fallback
@@ -74,5 +74,23 @@ export function formatDistance(m: number): string {
   return m < 1000 ? `${m}m` : `${(m / 1000).toFixed(1)}km`;
 }
 
-/** 메뉴나 가격이 비어 있으면 정보 보충 필요 */
-export const needsInfo = (r: { menu: string; price?: number }) => !r.menu || r.price === undefined;
+/** 1인 가격 → 가격대 (1만 원 미만 / 2만 원 미만 / 그 이상) */
+export function levelFromPrice(won: number): PriceLevel {
+  if (won < 10000) return '싼 곳';
+  if (won < 20000) return '보통';
+  return '비싼 곳';
+}
+
+/** 식당의 가격대: 직접 고른 값 → 없으면 가격으로 계산 → 둘 다 없으면 undefined */
+export function priceLevelOf(r: Pick<Restaurant, 'priceLevel' | 'price'>): PriceLevel | undefined {
+  return r.priceLevel ?? (r.price !== undefined ? levelFromPrice(r.price) : undefined);
+}
+
+/** 카드·목록에 보여줄 가격: 정확한 가격 > 가격대 > 미입력 */
+export function priceText(r: Pick<Restaurant, 'priceLevel' | 'price'>): string {
+  if (r.price !== undefined) return formatPrice(r.price);
+  return r.priceLevel ?? '가격 미입력';
+}
+
+/** 메뉴나 가격대가 비어 있으면 정보 보충 필요 */
+export const needsInfo = (r: Pick<Restaurant, 'menus' | 'priceLevel' | 'price'>) => r.menus.length === 0 || priceLevelOf(r) === undefined;

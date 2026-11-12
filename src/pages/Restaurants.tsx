@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link2, Plus, Search } from 'lucide-react';
 import type { AppData, Restaurant } from '../types';
 import type { Actions } from '../lib/useAppData';
-import { currentRating, formatPrice, lastVisitDate, needsInfo, relativeDay, toDateStr } from '../lib/utils';
+import { currentRating, lastVisitDate, needsInfo, priceText, relativeDay, toDateStr } from '../lib/utils';
 import { DEFAULT_AREA } from '../data/defaults';
 import { Chip } from '../components/ChipGroup';
 import { RestaurantForm } from '../components/RestaurantForm';
@@ -47,7 +47,7 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
     const q = query.trim().toLowerCase();
     return data.restaurants
       .filter((r) => area === ALL || (area === NEEDS_INFO ? needsInfo(r) : r.area === area))
-      .filter((r) => !q || [r.name, r.menu, r.category, ...r.tags].some((s) => s.toLowerCase().includes(q)))
+      .filter((r) => !q || [r.name, ...r.menus, r.category, ...r.tags].some((s) => s.toLowerCase().includes(q)))
       .sort((a, b) => data.areas.indexOf(a.area) - data.areas.indexOf(b.area) || a.name.localeCompare(b.name, 'ko'));
   }, [data, query, area]);
 
@@ -107,7 +107,7 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
                     {needsInfo(r) && <span className="shrink-0 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700">보충 필요</span>}
                   </div>
                   <div className="truncate text-xs text-stone-500">
-                    {r.area} · {r.category} · {r.menu || '메뉴 미입력'} · {formatPrice(r.price)}
+                    {r.area} · {r.category} · {r.menus.length ? r.menus.join(', ') : '메뉴 미입력'} · {priceText(r)}
                   </div>
                 </div>
                 {last && <span className="shrink-0 text-xs text-stone-400">{relativeDay(last, today)}</span>}
