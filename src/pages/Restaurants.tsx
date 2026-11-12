@@ -3,14 +3,35 @@ import { Link2, Plus, Search } from 'lucide-react';
 import type { AppData, Restaurant } from '../types';
 import type { Actions } from '../lib/useAppData';
 import { lastVisitDate, needsInfo, priceText, relativeDay, toDateStr } from '../lib/utils';
-import { DEFAULT_AREA } from '../data/defaults';
+import { DEFAULT_AREA, isCafeCategory } from '../data/defaults';
 import { Chip } from '../components/ChipGroup';
 import { RestaurantForm } from '../components/RestaurantForm';
 import { KakaoImport } from '../components/KakaoImport';
 import { AvgStars, StarBadge } from '../components/StarRating';
 
 const ALL = '전체';
-const NEEDS_INFO = '보충 필요';
+type Kind = '전체' | '식당' | '카페';
+type Service = '전체' | '배달' | '포장';
+const KINDS: { v: Kind; label: string }[] = [{ v: '전체', label: '전체' }, { v: '식당', label: '식당' }, { v: '카페', label: '카페·빵집' }];
+const SERVICES: Service[] = ['전체', '배달', '포장'];
+
+/** 작은 구간 선택 버튼 (전체/식당/카페 등) */
+function Segmented<T extends string>({ options, value, onChange }: { options: { v: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <div className="flex rounded-xl bg-stone-200/60 p-0.5">
+      {options.map((o) => (
+        <button
+          key={o.v}
+          onClick={() => onChange(o.v)}
+          aria-pressed={value === o.v}
+          className={`flex-1 rounded-lg px-2 py-1.5 text-sm font-semibold whitespace-nowrap ${value === o.v ? 'bg-white text-orange-600 shadow-sm' : 'text-stone-500'}`}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 /** 카카오 장소 검색은 API 키(+카드 등록)가 필요해서 기본은 숨김. .env.local에 VITE_ENABLE_KAKAO_IMPORT=true로 켬 */
 const KAKAO_IMPORT_ENABLED = import.meta.env.VITE_ENABLE_KAKAO_IMPORT === 'true';
 
@@ -29,6 +50,17 @@ interface Props {
 export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed, nick }: Props) {
   const [query, setQuery] = useState('');
   const [area, setArea] = useState(ALL);
+  const [kind, setKind] = useState<Kind>('전체');
+  const [service, setService] = useState<Service>('전체');
+  const [needsOnly, setNeedsOnly] = useState(false);
+  const filtering = area !== ALL || kind !== '전체' || service !== '전체' || needsOnly || !!query.trim();
+  const resetFilters = () => {
+    setArea(ALL);
+    setKind('전체');
+    setService('전체');
+    setNeedsOnly(false);
+    setQuery('');
+  };
   const [editing, setEditing] = useState<Editing | null>(null);
 
   useEffect(() => {
@@ -40,7 +72,9 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed,
   const [notice, setNotice] = useState('');
   const needsInfoCount = data.restaurants.filter(needsInfo).length;
   // 보충할 식당을 다 채우면 '보충 필요' 필터에서 자동으로 빠져나옴
-  if (area === NEEDS_INFO && needsInfoCount === 0) setArea(ALL);
+  if (needsOnly && needsInfoCount === 0) setNeedsOnly(false);
+  // 지역이 지워졌으면 전체로
+  if (area !== ALL && !data.areas.includes(area)) setArea(ALL);
   const today = toDateStr();
 
   const allTags = useMemo(() => [...new Set(data.restaurants.flatMap((r) => r.tags))], [data.restaurants]);
@@ -48,10 +82,13 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed,
   const list = useMemo(() => {
     const q = query.trim().toLowerCase();
     return data.restaurants
-      .filter((r) => area === ALL || (area === NEEDS_INFO ? needsInfo(r) : r.area === area))
+      .filter((r) => area === ALL || r.area === area)
+      .filter((r) => kind === '전체' || isCafeCategory(r.category) === (kind === '카페'))
+      .filter((r) => service === '전체' || r.tags.includes(service))
+      .filter((r) => !needsOnly || needsInfo(r))
       .filter((r) => !q || [r.name, ...r.menus, r.category, ...r.tags].some((s) => s.toLowerCase().includes(q)))
       .sort((a, b) => data.areas.indexOf(a.area) - data.areas.indexOf(b.area) || a.name.localeCompare(b.name, 'ko'));
-  }, [data, query, area]);
+  }, [data, query, area, kind, service, needsOnly]);
 
   return (
     <div className="space-y-4">
@@ -89,10 +126,35 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed,
         placeholder="이름, 메뉴, 태그로 검색"
         className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 outline-none focus:border-orange-400"
       />
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {[ALL, ...data.areas, ...(needsInfoCount ? [NEEDS_INFO] : [])].map((a) => (
-          <div key={a} className="shrink-0"><Chip active={area === a} onClick={() => setArea(a)}>{a}</Chip></div>
-        ))}
+      <div className="space-y-2">
+        <div className="grid grid-cols-[3fr_2fr] gap-2">
+          <Segmented options={KINDS} value={kind} onChange={setKind} />
+          <Segmented options={SERVICES.map((v) => ({ v, label: v }))} value={service} onChange={setService} />
+        </div>
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+          {[ALL, ...data.areas].map((a) => (
+            <div key={a} className="shrink-0"><Chip active={area === a} onClick={() => setArea(a)}>{a}</Chip></div>
+          ))}
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          {needsInfoCount > 0 ? (
+            <button
+              onClick={() => setNeedsOnly(!needsOnly)}
+              aria-pressed={needsOnly}
+              className={`rounded-full border px-2.5 py-1 font-semibold ${needsOnly ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-stone-200 bg-white text-stone-500'}`}
+            >
+              보충 필요만 ({needsInfoCount})
+            </button>
+          ) : (
+            <span />
+          )}
+          {filtering && (
+            <span className="flex items-center gap-2 text-stone-500">
+              {data.restaurants.length}곳 중 <b className="text-stone-800">{list.length}곳</b>
+              <button onClick={resetFilters} className="font-semibold text-orange-600 underline">초기화</button>
+            </span>
+          )}
+        </div>
       </div>
 
       <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white shadow-sm">
@@ -131,13 +193,13 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed,
       {importing && (
         <KakaoImport
           data={data}
-          initialArea={area !== ALL && area !== NEEDS_INFO ? area : data.areas.includes(DEFAULT_AREA) ? DEFAULT_AREA : data.areas[0]}
+          initialArea={area !== ALL ? area : data.areas.includes(DEFAULT_AREA) ? DEFAULT_AREA : data.areas[0]}
           onSetCenter={actions.setAreaCenter}
           onClose={() => setImporting(false)}
           onAdd={(list) => {
             actions.addRestaurants(list);
             setImporting(false);
-            setArea(NEEDS_INFO);
+            setNeedsOnly(true);
             setNotice(`${list.length}곳을 추가했어요. 눌러서 대표 메뉴·가격·누구랑 갈지 채워주세요.`);
           }}
         />
