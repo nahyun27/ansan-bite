@@ -8,6 +8,7 @@ import { guessArea, parseShare, type ParsedShare } from '../lib/shareParse';
 import { guessAutoTags, guessCategory } from '../lib/guessCategory';
 import { fetchLinkPreview, isKakaoLink } from '../lib/linkPreview';
 import { Chip, ChipGroup } from './ChipGroup';
+import { StarRating } from './StarRating';
 
 interface Props {
   initial?: Restaurant;
@@ -249,6 +250,11 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
               <TriangleAlert className="size-3.5" /> 이미 저장된 식당 같아요: {duplicate.name} ({duplicate.area})
             </p>
           )}
+        </div>
+
+        <div>
+          <label className={label}>내 별점 <span className="font-normal text-stone-400">(가본 곳이면)</span></label>
+          <StarRating value={f.stars} onChange={(stars) => set({ stars })} showLabel />
         </div>
 
         <div>

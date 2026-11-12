@@ -1,5 +1,5 @@
 import type { AppData, Companion, PriceLevel, Restaurant } from '../types';
-import { currentRating, daysBetween, lastVisitDate, priceLevelOf, sortVisitsDesc } from './utils';
+import { daysBetween, lastVisitDate, priceLevelOf, sortVisitsDesc } from './utils';
 import { isCafeCategory } from '../data/defaults';
 
 export type Kind = '밥' | '카페';
@@ -30,8 +30,9 @@ export interface RecommendOptions {
 }
 
 export const WEIGHTS = {
-  ratingAgain: 30,
-  ratingOkay: 10,
+  /** 별점별 가산점 (1점은 아예 제외) */
+  stars: { 2: 0, 3: 10, 4: 20, 5: 30 } as Record<number, number>,
+  /** 먹은 기록이 없는 곳 */
   neverVisited: 15,
   within3Days: -40,
   within7Days: -20,
@@ -54,7 +55,7 @@ export function filterCandidates(data: AppData, c: Conditions): Restaurant[] {
       (c.priceLevel === null || priceLevelOf(r) === undefined || priceLevelOf(r) === c.priceLevel) &&
       r.goodFor.includes(c.companion) &&
       c.tags.every((t) => r.tags.includes(t)) &&
-      currentRating(r.id, data.visits) !== 'nope',
+      r.stars !== 1,
   );
 }
 
@@ -77,19 +78,17 @@ export function recommend(data: AppData, c: Conditions, opts: RecommendOptions):
       let score = jitter[r.id] ?? 0;
       // 이유는 (우선순위, 문장)으로 모아서 우선순위가 높은 것부터 보여준다
       const reasons: [number, string][] = [];
-      const rating = currentRating(r.id, data.visits);
       const last = lastVisitDate(r.id, data.visits);
 
-      if (rating === 'again') {
-        score += WEIGHTS.ratingAgain;
-        reasons.push([30, '또 가고 싶다고 했던 곳이에요.']);
-      } else if (rating === 'okay') {
-        score += WEIGHTS.ratingOkay;
+      if (r.stars) {
+        score += WEIGHTS.stars[r.stars] ?? 0;
+        if (r.stars === 5) reasons.push([30, '별 다섯 개 준 곳이에요.']);
+        else if (r.stars === 4) reasons.push([25, '별 네 개 준 곳이에요.']);
       }
 
       if (!last) {
         score += WEIGHTS.neverVisited;
-        reasons.push([15, '아직 안 가본 곳이에요.']);
+        reasons.push([15, '최근에 먹은 기록이 없어요.']);
       } else {
         const days = daysBetween(last, today);
         if (days <= 3) score += WEIGHTS.within3Days;

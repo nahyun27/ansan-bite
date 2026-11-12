@@ -1,15 +1,11 @@
-export type Rating = 'again' | 'okay' | 'nope';
 export type Companion = '혼밥' | '친구랑' | '데이트';
 export type PriceLevel = '싼 곳' | '보통' | '비싼 곳';
 
 export const PRICE_LEVELS: PriceLevel[] = ['싼 곳', '보통', '비싼 곳'];
 
 export const COMPANIONS: Companion[] = ['혼밥', '친구랑', '데이트'];
-export const RATING_LABEL: Record<Rating, string> = {
-  again: '또 갈래',
-  okay: '무난해',
-  nope: '내 취향 아님',
-};
+/** 별점 1~5. 1점은 '내 취향 아님'으로 보고 추천에서 제외 */
+export const STAR_LABEL: Record<number, string> = { 1: '내 취향 아님', 2: '별로', 3: '무난해', 4: '좋아', 5: '또 갈래' };
 
 export interface Restaurant {
   id: string;
@@ -27,6 +23,8 @@ export interface Restaurant {
   tags: string[];
   mapUrl?: string;
   memo?: string;
+  /** 내 별점 1~5 (식당의 현재 평가는 이 값 하나) */
+  stars?: number;
   /** 카카오맵에서 가져온 경우 */
   kakaoId?: string;
   address?: string;
@@ -41,7 +39,8 @@ export interface Visit {
   restaurantId: string;
   /** YYYY-MM-DD (로컬 날짜) */
   date: string;
-  rating?: Rating;
+  /** 그날 먹고 남긴 별점 (기록용). 남기면 식당 별점도 이 값으로 바뀜 */
+  stars?: number;
   /** 평가 요청을 건너뛴 경우 다시 묻지 않음 */
   ratingSkipped?: boolean;
 }

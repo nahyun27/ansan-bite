@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AppData, Restaurant, Visit } from '../types';
 import { filterCandidates, recommend, type Conditions } from './recommend';
-import { currentRating, formatPrice } from './utils';
+import { formatPrice } from './utils';
 
 const r = (id: string, over: Partial<Restaurant> = {}): Restaurant => ({
   id, name: id, area: '학교 근처', category: '한식', menus: [], price: 9000,
@@ -22,9 +22,8 @@ describe('filterCandidates', () => {
         r('other-area', { area: '중앙역' }),
         r('expensive', { price: 15000 }),
         r('no-solo', { goodFor: ['데이트'] }),
-        r('nope'),
+        r('nope', { stars: 1 }),
       ],
-      [{ id: 'v1', restaurantId: 'nope', date: '2026-10-01', rating: 'nope' }],
     );
     expect(filterCandidates(d, cond).map((x) => x.id)).toEqual(['ok']);
     expect(filterCandidates(d, { ...cond, priceLevel: null }).map((x) => x.id)).toEqual(['ok', 'expensive']);
@@ -48,17 +47,6 @@ describe('filterCandidates', () => {
   });
 });
 
-describe('currentRating', () => {
-  it('평가가 있는 가장 최근 방문에서 계산한다', () => {
-    const visits: Visit[] = [
-      { id: '1', restaurantId: 'a', date: '2026-10-01', rating: 'nope' },
-      { id: '2', restaurantId: 'a', date: '2026-11-01', rating: 'again' },
-      { id: '3', restaurantId: 'a', date: '2026-11-10' }, // 아직 평가 안 함
-    ];
-    expect(currentRating('a', visits)).toBe('again');
-  });
-});
-
 describe('recommend', () => {
   it('최대 3곳, 점수 높은 순', () => {
     const d = data([r('a'), r('b'), r('c'), r('d')]);
@@ -72,13 +60,13 @@ describe('recommend', () => {
     expect(recommend(d, cond, noJitter)[0].restaurant.id).toBe('fresh');
   });
 
-  it('또 갈래 평가 + 오래 안 간 곳이 위로 온다', () => {
-    const d = data([r('loved', { category: '일식' }), r('unknown')], [
-      { id: 'v', restaurantId: 'loved', date: '2026-10-01', rating: 'again' },
+  it('별 다섯 개 + 오래 안 간 곳이 위로 온다', () => {
+    const d = data([r('loved', { category: '일식', stars: 5 }), r('unknown')], [
+      { id: 'v', restaurantId: 'loved', date: '2026-10-01' },
     ]);
     const res = recommend(d, cond, noJitter);
     expect(res[0].restaurant.id).toBe('loved');
-    expect(res[0].reasons[0]).toBe('또 가고 싶다고 했던 곳이에요.');
+    expect(res[0].reasons[0]).toBe('별 다섯 개 준 곳이에요.');
   });
 
   it('최근 2번 먹은 음식 종류는 감점', () => {

@@ -4,7 +4,7 @@ import type { AppData } from '../types';
 import type { Actions } from '../lib/useAppData';
 import { exportFileName, normalizeData, parseAppData } from '../lib/storage';
 import { formatPrice, relativeDay, sortVisitsDesc, toDateStr } from '../lib/utils';
-import { RatingButtons } from '../components/RatingButtons';
+import { StarRating } from '../components/StarRating';
 
 export function HistoryPage({ data, actions }: { data: AppData; actions: Actions }) {
   const today = toDateStr();
@@ -101,7 +101,7 @@ export function HistoryPage({ data, actions }: { data: AppData; actions: Actions
                         <X className="size-4" />
                       </button>
                     </div>
-                    <RatingButtons size="sm" value={v.rating} onChange={(rating) => actions.rateVisit(v.id, rating)} />
+                    <StarRating size="sm" value={v.stars} onChange={(s) => actions.rateVisit(v.id, s)} />
                   </li>
                 );
               })}

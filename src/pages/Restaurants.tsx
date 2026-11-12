@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link2, Plus, Search } from 'lucide-react';
 import type { AppData, Restaurant } from '../types';
 import type { Actions } from '../lib/useAppData';
-import { currentRating, lastVisitDate, needsInfo, priceText, relativeDay, toDateStr } from '../lib/utils';
+import { lastVisitDate, needsInfo, priceText, relativeDay, toDateStr } from '../lib/utils';
 import { DEFAULT_AREA } from '../data/defaults';
 import { Chip } from '../components/ChipGroup';
 import { RestaurantForm } from '../components/RestaurantForm';
 import { KakaoImport } from '../components/KakaoImport';
-import { RatingIcon } from '../components/RatingIcon';
+import { StarBadge } from '../components/StarRating';
 
 const ALL = '전체';
 const NEEDS_INFO = '보충 필요';
@@ -95,7 +95,6 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
 
       <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white shadow-sm">
         {list.map((r) => {
-          const rating = currentRating(r.id, data.visits);
           const last = lastVisitDate(r.id, data.visits);
           return (
             <li key={r.id}>
@@ -103,7 +102,7 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="truncate font-semibold">{r.name}</span>
-                    {rating && <RatingIcon rating={rating} className={`size-3.5 shrink-0 ${rating === 'again' ? 'fill-rose-500 text-rose-500' : 'text-stone-400'}`} />}
+                    <StarBadge stars={r.stars} />
                     {needsInfo(r) && <span className="shrink-0 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700">보충 필요</span>}
                   </div>
                   <div className="truncate text-xs text-stone-500">

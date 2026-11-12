@@ -1,6 +1,7 @@
 import { CircleCheck, Map, Target } from 'lucide-react';
 import type { Recommendation } from '../lib/recommend';
 import { naverMapSearchUrl, priceText } from '../lib/utils';
+import { StarBadge } from './StarRating';
 
 interface Props {
   rec: Recommendation;
@@ -24,7 +25,10 @@ export function RecommendCard({ rec, rank, highlighted, picked, chosen, onChoose
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="text-xs font-semibold text-orange-500">추천 {rank}</div>
-          <h3 className="truncate text-lg font-bold">{r.name}</h3>
+          <div className="flex items-center gap-1.5">
+            <h3 className="truncate text-lg font-bold">{r.name}</h3>
+            <StarBadge stars={r.stars} />
+          </div>
           <p className="text-sm text-stone-500">
             {r.category}{r.menus.length > 0 && ` · ${r.menus.slice(0, 3).join(', ')}`} · {priceText(r)}
           </p>

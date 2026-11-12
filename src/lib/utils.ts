@@ -1,4 +1,4 @@
-import type { PriceLevel, Rating, Restaurant, Visit } from '../types';
+import type { PriceLevel, Restaurant, Visit } from '../types';
 
 export function newId(): string {
   // crypto.randomUUID는 https/localhost에서만 동작 → LAN 테스트 대비 fallback
@@ -45,11 +45,6 @@ export function sortVisitsDesc(visits: Visit[]): Visit[] {
     .map((v, i) => ({ v, i }))
     .sort((a, b) => (a.v.date === b.v.date ? b.i - a.i : a.v.date < b.v.date ? 1 : -1))
     .map((x) => x.v);
-}
-
-/** 식당의 현재 평가 = 평가가 있는 가장 최근 방문의 평가 */
-export function currentRating(restaurantId: string, visits: Visit[]): Rating | undefined {
-  return sortVisitsDesc(visits).find((v) => v.restaurantId === restaurantId && v.rating)?.rating;
 }
 
 export function lastVisitDate(restaurantId: string, visits: Visit[]): string | undefined {

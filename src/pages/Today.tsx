@@ -7,7 +7,7 @@ import { makeJitter, recommend, type Conditions, type Kind, type Recommendation 
 import { relativeDay, sortVisitsDesc, toDateStr } from '../lib/utils';
 import { ALL_QUICK_TAGS, CAFE_QUICK_TAGS, DEFAULT_AREA, MOOD_TAGS, QUICK_TAGS, isCafeCategory } from '../data/defaults';
 import { Chip, ChipGroup } from '../components/ChipGroup';
-import { RatingButtons } from '../components/RatingButtons';
+import { StarRating } from '../components/StarRating';
 import { RecommendCard } from '../components/RecommendCard';
 
 const PRICE_OPTIONS: (PriceLevel | null)[] = [null, ...PRICE_LEVELS];
@@ -66,7 +66,7 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
   // 어제 이전 방문 중 아직 평가 안 한 가장 최근 것
   const today = toDateStr();
   const pendingVisit = useMemo(
-    () => sortVisitsDesc(data.visits).find((v) => v.date < today && !v.rating && !v.ratingSkipped),
+    () => sortVisitsDesc(data.visits).find((v) => v.date < today && !v.stars && !v.ratingSkipped),
     [data.visits, today],
   );
   const pendingName = pendingVisit && data.restaurants.find((r) => r.id === pendingVisit.restaurantId)?.name;
@@ -175,7 +175,7 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
             {relativeDay(pendingVisit.date, today)} 먹은 <b>{pendingName}</b>, 어땠어?
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <RatingButtons onChange={(r) => actions.rateVisit(pendingVisit.id, r)} />
+            <StarRating size="lg" onChange={(s) => s && actions.rateVisit(pendingVisit.id, s)} />
             <button onClick={() => actions.skipRating(pendingVisit.id)} className="text-xs text-stone-400 underline">
               건너뛰기
             </button>
@@ -241,7 +241,11 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
             {result.notice && <p className="text-sm text-stone-500">{result.notice}</p>}
             {result.recs.length === 0 ? (
               <p className="rounded-2xl bg-white p-6 text-center text-sm text-stone-500">
-                조건에 맞는 곳이 없어요.<br />가격대·태그를 풀거나 동네를 바꾸거나, <b>내 식당</b>에서 식당을 추가해 보세요.
+                {cond.kind === '카페' && !data.restaurants.some((r) => isCafeCategory(r.category)) ? (
+                  <>아직 등록한 카페·빵집이 없어요.<br /><b>내 식당 → 추가</b>에서 음식 종류를 <b>카페·빵집·디저트</b>로 고르면 여기 나와요.</>
+                ) : (
+                  <>조건에 맞는 곳이 없어요.<br />가격대·태그를 풀거나 동네를 바꾸거나, <b>내 식당</b>에서 추가해 보세요.</>
+                )}
               </p>
             ) : (
               <>

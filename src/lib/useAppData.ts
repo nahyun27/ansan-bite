@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { AppData, AreaCenter, Rating, Restaurant } from '../types';
+import type { AppData, AreaCenter, Restaurant } from '../types';
 import { createInitialData } from '../data/defaults';
 import { loadData, saveData } from './storage';
 import { newId, toDateStr } from './utils';
@@ -17,11 +17,19 @@ export function useAppData() {
     return id;
   }, []);
 
-  const rateVisit = useCallback((visitId: string, rating: Rating) => {
-    setData((d) => ({
-      ...d,
-      visits: d.visits.map((v) => (v.id === visitId ? { ...v, rating, ratingSkipped: undefined } : v)),
-    }));
+  /** 그날 별점 남기기 → 방문 기록에 남기고, 식당 별점도 이 값으로 */
+  const rateVisit = useCallback((visitId: string, stars: number | undefined) => {
+    setData((d) => {
+      const visit = d.visits.find((v) => v.id === visitId);
+      if (!visit) return d;
+      return {
+        ...d,
+        visits: d.visits.map((v) => (v.id === visitId ? { ...v, stars, ratingSkipped: undefined } : v)),
+        restaurants: stars
+          ? d.restaurants.map((r) => (r.id === visit.restaurantId ? { ...r, stars } : r))
+          : d.restaurants,
+      };
+    });
   }, []);
 
   const skipRating = useCallback((visitId: string) => {

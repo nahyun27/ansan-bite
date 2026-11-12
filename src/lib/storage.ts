@@ -1,6 +1,7 @@
 import type { AppData } from '../types';
 import { ALL_QUICK_TAGS, createInitialData, isLegacyExample } from '../data/defaults';
 import { guessAutoTags, guessCategory } from './guessCategory';
+import { sortVisitsDesc } from './utils';
 
 /** 자동 태그 규칙이 바뀌면 올려서 기존 식당에 한 번 더 채움 */
 export const AUTO_TAGS_VERSION = 1;
@@ -22,7 +23,26 @@ export function loadData(): AppData {
 
 /** 불러온 데이터(로컬 저장·백업 파일)를 최신 형식으로 */
 export function normalizeData(data: AppData): AppData {
-  return backfillAutoTags(migrateCategories(removeLegacyExamples(migrateMenus(data))));
+  return backfillAutoTags(migrateCategories(removeLegacyExamples(migrateRatings(migrateMenus(data)))));
+}
+
+/** 예전 3단계 평가(visit.rating) → 별점. 또 갈래 5 / 무난해 3 / 내 취향 아님 1, 식당 별점은 가장 최근 평가 */
+const RATING_TO_STARS: Record<string, number> = { again: 5, okay: 3, nope: 1 };
+export function migrateRatings(data: AppData): AppData {
+  type OldVisit = (typeof data.visits)[number] & { rating?: string };
+  if (!(data.visits as OldVisit[]).some((v) => v.rating)) return data;
+  const visits = (data.visits as OldVisit[]).map(({ rating, ...v }) =>
+    rating && v.stars === undefined ? { ...v, stars: RATING_TO_STARS[rating] } : v,
+  );
+  const latest = new Map<string, number>();
+  for (const v of sortVisitsDesc(visits)) {
+    if (v.stars && !latest.has(v.restaurantId)) latest.set(v.restaurantId, v.stars);
+  }
+  return {
+    ...data,
+    visits,
+    restaurants: data.restaurants.map((r) => (r.stars === undefined && latest.has(r.id) ? { ...r, stars: latest.get(r.id) } : r)),
+  };
 }
 
 /** 예전 형식: menu(문자열 하나) → menus(목록) */

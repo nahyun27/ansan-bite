@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AppData } from '../types';
 import { createInitialData } from '../data/defaults';
-import { backfillAutoTags, migrateCategories, migrateMenus, removeLegacyExamples } from './storage';
+import { backfillAutoTags, migrateCategories, migrateMenus, migrateRatings, removeLegacyExamples } from './storage';
 
 describe('storage', () => {
   it('처음 시작하면 식당 없이 기본 지역만', () => {
@@ -69,5 +69,20 @@ describe('backfillAutoTags', () => {
     ] });
     expect(d.restaurants.map((r) => r.tags)).toEqual([['자극적'], ['디저트용'], ['술집'], ['연구실 점심용', '가볍게']]);
     expect(backfillAutoTags(d)).toBe(d); // 한 번만
+  });
+});
+
+describe('migrateRatings', () => {
+  it('3단계 평가 → 별점, 식당 별점은 가장 최근 평가', () => {
+    const old = { version: 1, areas: ['a'], restaurants: [
+      { id: 'r', name: 'x', area: 'a', category: '한식', menus: [], goodFor: [], tags: [] },
+    ], visits: [
+      { id: '1', restaurantId: 'r', date: '2026-10-01', rating: 'nope' },
+      { id: '2', restaurantId: 'r', date: '2026-11-01', rating: 'again' },
+    ] } as unknown as AppData;
+    const d = migrateRatings(old);
+    expect(d.visits.map((v) => v.stars)).toEqual([1, 5]);
+    expect(d.visits[0]).not.toHaveProperty('rating');
+    expect(d.restaurants[0].stars).toBe(5);
   });
 });
