@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { CircleCheck, Map, Plus, Shuffle, Trash2, X } from 'lucide-react';
+import { CircleCheck, Map, PartyPopper, Plus, Shuffle, Trash2, Utensils, X } from 'lucide-react';
 import type { AppData } from '../types';
 import type { Actions } from '../lib/useAppData';
 import { indexAtTop, targetRotation, type WheelCandidate } from '../lib/wheel';
@@ -14,7 +14,8 @@ interface Props {
 }
 
 const MAX = 12;
-const COLORS = ['#fdba74', '#fed7aa', '#fb923c', '#ffedd5', '#fcd34d', '#fde68a'];
+// 따뜻한 색을 번갈아 (글자는 진한 갈색이라 모든 색에서 잘 보임)
+const COLORS = ['#fb923c', '#fde68a', '#fca5a5', '#fed7aa', '#fbbf24', '#ffedd5', '#fdba74', '#fecdd3'];
 const DURATION = 4000;
 
 export function WheelPage({ data, actions, candidates, setCandidates }: Props) {
@@ -83,79 +84,97 @@ export function WheelPage({ data, actions, candidates, setCandidates }: Props) {
       </header>
 
       {/* 돌림판 */}
-      <section className="relative mx-auto aspect-square w-full max-w-80">
-        {/* 화살표 */}
-        <div className="absolute top-0 left-1/2 z-10 -translate-x-1/2 -translate-y-1">
-          <svg width="28" height="30" viewBox="0 0 28 30" aria-hidden>
-            <path d="M14 30 L2 4 Q14 -2 26 4 Z" fill="#292524" />
-          </svg>
-        </div>
-        <svg
-          viewBox="-100 -100 200 200"
-          className="size-full drop-shadow-md"
-          style={{
-            transform: `rotate(${rotation}deg)`,
-            transition: spinning ? `transform ${DURATION}ms cubic-bezier(0.12, 0.8, 0.18, 1)` : 'none',
-          }}
-          role="img"
-          aria-label={n ? `후보 ${n}개 돌림판` : '빈 돌림판'}
-        >
-          <circle r="98" fill="#fff" stroke="#fed7aa" strokeWidth="2" />
-          {n === 1 && <circle r="96" fill={COLORS[0]} />}
-          {n >= 2 &&
-            candidates.map((c, i) => {
-              const seg = 360 / n;
-              const a0 = ((i * seg - 90) * Math.PI) / 180;
-              const a1 = (((i + 1) * seg - 90) * Math.PI) / 180;
-              const large = seg > 180 ? 1 : 0;
-              const d = `M0 0 L${96 * Math.cos(a0)} ${96 * Math.sin(a0)} A96 96 0 ${large} 1 ${96 * Math.cos(a1)} ${96 * Math.sin(a1)} Z`;
-              // 마지막 칸이 첫 칸과 같은 색이 되지 않게
-              let color = COLORS[i % COLORS.length];
-              if (i === n - 1 && i % COLORS.length === 0) color = COLORS[2];
-              const mid = i * seg + seg / 2;
-              const highlight = resultIdx === i;
-              return (
-                <g key={c.id}>
-                  <path d={d} fill={highlight ? '#f97316' : color} stroke="#fff" strokeWidth="1.5" />
-                  <text
-                    transform={`rotate(${mid - 90}) translate(58 0)`}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    fontSize={n > 8 ? 7.5 : 9.5}
-                    fontWeight="700"
-                    fill={highlight ? '#fff' : '#431407'}
-                  >
-                    {c.label.length > 7 ? c.label.slice(0, 6) + '…' : c.label}
-                  </text>
-                </g>
-              );
-            })}
-          {n === 1 && (
-            <text textAnchor="middle" dominantBaseline="middle" fontSize="11" fontWeight="700" fill="#431407" y="-40">
-              {candidates[0].label}
-            </text>
-          )}
-          {n === 0 && (
-            <text textAnchor="middle" dominantBaseline="middle" fontSize="9" fill="#a8a29e">
-              아래에서 후보를 넣어주세요
-            </text>
-          )}
-          <circle r="14" fill="#fff" stroke="#fdba74" strokeWidth="2" />
-        </svg>
-      </section>
+      <section className="rounded-3xl bg-gradient-to-b from-orange-100 to-amber-50 px-4 pt-6 pb-5 shadow-inner">
+        <div className={`relative mx-auto aspect-square w-full max-w-80 ${spinning ? 'wheel-spinning' : ''}`}>
+          {/* 화살표 */}
+          <div className="absolute top-0 left-1/2 z-10 -translate-x-1/2 -translate-y-3 drop-shadow-[0_3px_3px_rgba(0,0,0,0.25)]">
+            <svg width="36" height="44" viewBox="0 0 36 44" aria-hidden>
+              <path d="M18 43 C14 34 4 24 4 15 A14 14 0 0 1 32 15 C32 24 22 34 18 43 Z" fill="#c2410c" />
+              <circle cx="18" cy="15" r="5.5" fill="#fff7ed" />
+            </svg>
+          </div>
 
-      <button
-        onClick={spin}
-        disabled={n < 2 || spinning}
-        className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-orange-500 py-3.5 text-base font-bold text-white shadow-md shadow-orange-200 disabled:bg-stone-300 disabled:shadow-none"
-      >
-        <Shuffle className="size-5" /> {spinning ? '돌아가는 중…' : n < 2 ? '후보를 2개 이상 넣어주세요' : '돌리기'}
-      </button>
+          <svg
+            viewBox="-100 -100 200 200"
+            className="size-full drop-shadow-[0_8px_16px_rgba(194,65,12,0.25)]"
+            role="img"
+            aria-label={n ? `후보 ${n}개 돌림판` : '빈 돌림판'}
+          >
+            {/* 바깥 테두리 + 전구 */}
+            <circle r="99" fill="#ea580c" />
+            <circle r="91" fill="#fff7ed" />
+            {Array.from({ length: 24 }, (_, i) => {
+              const a = (i / 24) * Math.PI * 2;
+              return <circle key={i} className={`wheel-light ${i % 2 ? 'odd' : ''}`} cx={95 * Math.cos(a)} cy={95 * Math.sin(a)} r="2.2" />;
+            })}
+
+            {/* 도는 판 */}
+            <g
+              style={{
+                transform: `rotate(${rotation}deg)`,
+                transition: spinning ? `transform ${DURATION}ms cubic-bezier(0.12, 0.8, 0.18, 1)` : 'none',
+              }}
+            >
+              {n === 0 && <circle r="88" fill="#ffedd5" />}
+              {n === 1 && <circle r="88" fill={COLORS[0]} />}
+              {n >= 2 &&
+                candidates.map((c, i) => {
+                  const seg = 360 / n;
+                  const a0 = ((i * seg - 90) * Math.PI) / 180;
+                  const a1 = (((i + 1) * seg - 90) * Math.PI) / 180;
+                  const large = seg > 180 ? 1 : 0;
+                  const d = `M0 0 L${88 * Math.cos(a0)} ${88 * Math.sin(a0)} A88 88 0 ${large} 1 ${88 * Math.cos(a1)} ${88 * Math.sin(a1)} Z`;
+                  // 이웃한 칸·첫 칸과 마지막 칸이 같은 색이 되지 않게
+                  let color = COLORS[i % COLORS.length];
+                  if (i === n - 1 && i % COLORS.length === 0) color = COLORS[3];
+                  const mid = i * seg + seg / 2;
+                  const win = resultIdx === i;
+                  return (
+                    <g key={c.id}>
+                      <path d={d} fill={win ? '#c2410c' : color} stroke="#fff7ed" strokeWidth="1.5" />
+                      <SliceLabel label={c.label} mid={mid} n={n} win={win} />
+                    </g>
+                  );
+                })}
+              {n === 1 && (
+                <text textAnchor="middle" dominantBaseline="central" fontSize="12" fontWeight="800" fill="#431407" y="-48">
+                  {candidates[0].label}
+                </text>
+              )}
+              {n === 0 && (
+                <text textAnchor="middle" dominantBaseline="central" fontSize="8.5" fill="#a8a29e" y="-46">
+                  아래에서 후보를 넣어주세요
+                </text>
+              )}
+            </g>
+          </svg>
+
+          {/* 가운데 버튼: 눌러도 돌아감 */}
+          <button
+            onClick={spin}
+            disabled={n < 2 || spinning}
+            aria-label="돌리기"
+            className={`absolute top-1/2 left-1/2 flex size-[22%] -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-4 border-white text-sm font-black text-white shadow-lg transition active:scale-95 ${
+              n < 2 ? 'bg-stone-400' : 'bg-orange-600'
+            }`}
+          >
+            {spinning ? <Utensils className="size-5 animate-pulse" /> : 'GO'}
+          </button>
+        </div>
+
+        <button
+          onClick={spin}
+          disabled={n < 2 || spinning}
+          className="mt-5 flex w-full items-center justify-center gap-1.5 rounded-2xl bg-orange-500 py-3.5 text-base font-bold text-white shadow-md shadow-orange-200 disabled:bg-stone-300 disabled:shadow-none"
+        >
+          <Shuffle className="size-5" /> {spinning ? '두근두근…' : n < 2 ? '후보를 2개 이상 넣어주세요' : '돌리기'}
+        </button>
+      </section>
 
       {/* 결과 */}
       {result && (
-        <section className="rounded-2xl border-2 border-orange-400 bg-white p-4 text-center">
-          <p className="text-sm text-stone-500">오늘은</p>
+        <section key={`${result.id}-${rotation}`} className="animate-pop rounded-2xl border-2 border-orange-400 bg-white p-4 text-center shadow-lg shadow-orange-100">
+          <p className="flex items-center justify-center gap-1 text-sm text-stone-500"><PartyPopper className="size-4 text-orange-500" /> 오늘은 여기!</p>
           <div className="mt-1 flex items-center justify-center gap-1.5">
             <p className="text-2xl font-black text-orange-600">{result.label}</p>
             <StarBadge stars={resultRestaurant?.stars} />
@@ -246,5 +265,30 @@ export function WheelPage({ data, actions, candidates, setCandidates }: Props) {
         )}
       </section>
     </div>
+  );
+}
+
+/**
+ * 칸 글씨. 6칸 이하는 원을 따라 가로로 써서, 맨 위(화살표)에 멈춘 결과 칸 글씨가 똑바로 보이게.
+ * 7칸 이상은 자리가 좁아서 중심에서 바깥쪽으로.
+ */
+function SliceLabel({ label, mid, n, win }: { label: string; mid: number; n: number; win: boolean }) {
+  const fill = win ? '#fff' : '#431407';
+  if (n <= 6) {
+    const fontSize = n <= 3 ? 12 : n <= 4 ? 11 : 9.5;
+    const radius = 60;
+    const arc = ((2 * Math.PI * radius) / n) * 0.8; // 칸 너비(여유 20%)
+    const max = Math.max(2, Math.floor(arc / (fontSize * 1.05)));
+    const text = label.length > max ? label.slice(0, max - 1) + '…' : label;
+    return (
+      <text transform={`rotate(${mid}) translate(0 ${-radius})`} textAnchor="middle" dominantBaseline="central" fontSize={fontSize} fontWeight="800" fill={fill}>
+        {text}
+      </text>
+    );
+  }
+  return (
+    <text transform={`rotate(${mid - 90}) translate(56 0)`} textAnchor="middle" dominantBaseline="central" fontSize={n > 9 ? 7.5 : 8.5} fontWeight="800" fill={fill}>
+      {label.length > 6 ? label.slice(0, 5) + '…' : label}
+    </text>
   );
 }
