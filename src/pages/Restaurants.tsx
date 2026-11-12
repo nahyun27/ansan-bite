@@ -110,7 +110,7 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
                     {r.area} · {r.category} · {r.menu || '메뉴 미입력'} · {formatPrice(r.price)}
                   </div>
                 </div>
-                <span className="shrink-0 text-xs text-stone-400">{last ? relativeDay(last, today) : '안 가봄'}</span>
+                {last && <span className="shrink-0 text-xs text-stone-400">{relativeDay(last, today)}</span>}
               </button>
             </li>
           );
