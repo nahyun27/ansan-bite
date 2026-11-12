@@ -4,7 +4,7 @@ import { COMPANIONS } from '../types';
 import type { Actions } from '../lib/useAppData';
 import { makeJitter, recommend, type Conditions, type Recommendation } from '../lib/recommend';
 import { relativeDay, sortVisitsDesc, toDateStr } from '../lib/utils';
-import { DEFAULT_AREA } from '../data/seed';
+import { DEFAULT_AREA } from '../data/defaults';
 import { Chip, ChipGroup } from '../components/ChipGroup';
 import { RatingButtons } from '../components/RatingButtons';
 import { RecommendCard } from '../components/RecommendCard';
@@ -19,7 +19,7 @@ interface Result {
   notice?: string;
 }
 
-export function TodayPage({ data, actions }: { data: AppData; actions: Actions }) {
+export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; actions: Actions; onAddRestaurant: () => void }) {
   const [cond, setCond] = useState<Conditions>({
     area: data.areas.includes(DEFAULT_AREA) ? DEFAULT_AREA : data.areas[0] ?? '',
     companion: '혼밥',
@@ -144,6 +144,17 @@ export function TodayPage({ data, actions }: { data: AppData; actions: Actions }
         <p className="mt-1 text-2xl font-bold">오늘은 어디서 먹지?</p>
         <p className="mt-1 text-sm text-stone-500">지금 상황에 맞는 안산 맛집 3곳을 골라드려요.</p>
       </header>
+
+      {data.restaurants.length === 0 && (
+        <section className="rounded-2xl border-2 border-dashed border-orange-300 bg-white p-5 text-center">
+          <p className="text-3xl">🍚</p>
+          <p className="mt-2 font-bold">먼저 내가 가는 식당을 등록해 주세요</p>
+          <p className="mt-1 text-sm text-stone-500">지도 앱에서 공유 → 복사한 링크를 붙여넣으면 금방이에요.</p>
+          <button onClick={onAddRestaurant} className="mt-3 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white">
+            식당 등록하러 가기
+          </button>
+        </section>
+      )}
 
       {pendingVisit && pendingName && (
         <section className="rounded-2xl border border-orange-200 bg-white p-4">

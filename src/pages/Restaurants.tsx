@@ -3,7 +3,7 @@ import type { AppData, Restaurant } from '../types';
 import { RATING_EMOJI } from '../types';
 import type { Actions } from '../lib/useAppData';
 import { currentRating, formatPrice, lastVisitDate, needsInfo, relativeDay, toDateStr } from '../lib/utils';
-import { DEFAULT_AREA, isSeed } from '../data/seed';
+import { DEFAULT_AREA } from '../data/defaults';
 import { Chip } from '../components/ChipGroup';
 import { RestaurantForm } from '../components/RestaurantForm';
 import { KakaoImport } from '../components/KakaoImport';
@@ -35,7 +35,6 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
   }, [incomingShare, onShareConsumed]);
   const [importing, setImporting] = useState(false);
   const [notice, setNotice] = useState('');
-  const seedCount = data.restaurants.filter((r) => isSeed(r.id)).length;
   const needsInfoCount = data.restaurants.filter(needsInfo).length;
   // 보충할 식당을 다 채우면 '보충 필요' 필터에서 자동으로 빠져나옴
   if (area === NEEDS_INFO && needsInfoCount === 0) setArea(ALL);
@@ -79,18 +78,6 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
         </button>
       )}
 
-      {seedCount > 0 && (
-        <div className="rounded-2xl bg-amber-100 p-3 text-sm text-amber-900">
-          지금 목록에 <b>예시 식당 {seedCount}곳</b>(실제 식당 아님)이 섞여 있어요. 실제 식당을 추가한 뒤 지워주세요.
-          <button
-            onClick={() => confirm(`예시 식당 ${seedCount}곳과 그 방문 기록을 지울까요?`) && actions.removeSeedRestaurants()}
-            className="mt-2 block font-semibold underline"
-          >
-            예시 식당 모두 지우기
-          </button>
-        </div>
-      )}
-
       {notice && <p className="rounded-2xl bg-green-100 p-3 text-sm text-green-900">{notice}</p>}
 
       <input
@@ -127,7 +114,15 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
             </li>
           );
         })}
-        {list.length === 0 && <li className="p-6 text-center text-sm text-stone-400">찾는 식당이 없어요.</li>}
+        {list.length === 0 && (
+          <li className="p-6 text-center text-sm text-stone-400">
+            {data.restaurants.length === 0 ? (
+              <>아직 등록한 식당이 없어요.<br />위의 <b className="text-orange-600">🔗 지도 링크로 추가</b>로 첫 식당을 넣어보세요.</>
+            ) : (
+              '찾는 식당이 없어요.'
+            )}
+          </li>
+        )}
       </ul>
 
       {importing && (

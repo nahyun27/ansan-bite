@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AppData, AreaCenter, Rating, Restaurant } from '../types';
-import { createSeedData, isSeed } from '../data/seed';
+import { createInitialData } from '../data/defaults';
 import { loadData, saveData } from './storage';
 import { newId, toDateStr } from './utils';
 
@@ -51,14 +51,6 @@ export function useAppData() {
     }));
   }, []);
 
-  const removeSeedRestaurants = useCallback(() => {
-    setData((d) => ({
-      ...d,
-      restaurants: d.restaurants.filter((r) => !isSeed(r.id)),
-      visits: d.visits.filter((v) => !isSeed(v.restaurantId)),
-    }));
-  }, []);
-
   const setAreaCenter = useCallback((area: string, center: AreaCenter) => {
     setData((d) => ({ ...d, areaCenters: { ...d.areaCenters, [area]: center } }));
   }, []);
@@ -84,15 +76,15 @@ export function useAppData() {
   }, []);
 
   const replaceData = useCallback((next: AppData) => setData(next), []);
-  const resetToSeed = useCallback(() => setData(createSeedData()), []);
+  const resetAll = useCallback(() => setData(createInitialData()), []);
 
   return {
     data,
     actions: {
       addVisit, rateVisit, skipRating, deleteVisit,
-      saveRestaurant, addRestaurants, removeSeedRestaurants, deleteRestaurant,
+      saveRestaurant, addRestaurants, deleteRestaurant,
       addArea, removeArea, setAreaCenter,
-      replaceData, resetToSeed,
+      replaceData, resetAll,
     },
   };
 }

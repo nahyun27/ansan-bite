@@ -30,7 +30,7 @@ export default function App() {
     <div className="mx-auto flex min-h-full max-w-md flex-col">
       <main className="flex-1 px-4 pt-[max(env(safe-area-inset-top),1.25rem)] pb-28">
         {/* 탭 전환해도 상태(추천 결과 등)가 유지되도록 모두 마운트해 두고 숨김 처리 */}
-        <div hidden={tab !== 'today'}><TodayPage data={data} actions={actions} /></div>
+        <div hidden={tab !== 'today'}><TodayPage data={data} actions={actions} onAddRestaurant={() => setTab('list')} /></div>
         <div hidden={tab !== 'list'}><RestaurantsPage data={data} actions={actions} incomingShare={incomingShare} onShareConsumed={clearShare} /></div>
         <div hidden={tab !== 'history'}><HistoryPage data={data} actions={actions} /></div>
       </main>

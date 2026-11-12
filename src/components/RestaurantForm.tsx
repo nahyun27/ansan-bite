@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Companion, Restaurant } from '../types';
 import { COMPANIONS } from '../types';
-import { CATEGORIES, SUGGESTED_TAGS } from '../data/seed';
+import { CATEGORIES, SUGGESTED_TAGS } from '../data/defaults';
 import { newId } from '../lib/utils';
 import { guessArea, parseShare, type ParsedShare } from '../lib/shareParse';
 import { Chip, ChipGroup } from './ChipGroup';

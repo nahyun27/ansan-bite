@@ -163,10 +163,10 @@ export function HistoryPage({ data, actions }: { data: AppData; actions: Actions
         </div>
         {message && <p className="text-sm">{message}</p>}
         <button
-          onClick={() => confirm('모든 식당과 기록을 지우고 예시 데이터로 되돌릴까요?') && actions.resetToSeed()}
+          onClick={() => confirm('모든 식당과 기록을 지울까요? 되돌릴 수 없어요. 먼저 내보내기로 백업해 두세요.') && actions.resetAll()}
           className="w-full pt-2 text-xs text-red-400"
         >
-          예시 데이터로 초기화
+          모든 데이터 지우기
         </button>
       </section>
     </div>

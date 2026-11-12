@@ -29,9 +29,10 @@ describe('places', () => {
     expect(r.price).toBeUndefined();
   });
 
-  it('이미 저장된 곳 판별 (예시 데이터와 이름이 같아도 중복 아님)', () => {
+  it('이미 저장된 곳 판별 (카카오 id 또는 이름)', () => {
     const saved = placeToRestaurant(place, '학교 근처', center, 'id1');
     expect(isAlreadySaved(place, [saved])).toBe(true);
-    expect(isAlreadySaved(place, [{ ...saved, id: 'seed-1', kakaoId: undefined }])).toBe(false);
+    expect(isAlreadySaved(place, [{ ...saved, kakaoId: undefined }])).toBe(true);
+    expect(isAlreadySaved(place, [{ ...saved, kakaoId: undefined, name: '다른 집' }])).toBe(false);
   });
 });

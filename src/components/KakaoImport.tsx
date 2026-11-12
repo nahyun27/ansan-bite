@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { AppData, AreaCenter, Restaurant } from '../types';
-import { DEFAULT_CENTER_QUERY } from '../data/seed';
+import { DEFAULT_CENTER_QUERY } from '../data/defaults';
 import { findCenter, isAlreadySaved, parseCategory, placeToRestaurant, searchPlaces, type PlaceResult } from '../lib/places';
 import { distanceMeters, formatDistance, newId } from '../lib/utils';
 import { Chip, ChipGroup } from './ChipGroup';

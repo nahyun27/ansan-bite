@@ -85,5 +85,5 @@ export function placeToRestaurant(place: PlaceResult, area: string, center: Area
 }
 
 export function isAlreadySaved(place: PlaceResult, restaurants: Restaurant[]): boolean {
-  return restaurants.some((r) => r.kakaoId === place.id || (r.name === place.name && !r.id.startsWith('seed-')));
+  return restaurants.some((r) => r.kakaoId === place.id || r.name === place.name);
 }

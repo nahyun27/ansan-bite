@@ -37,7 +37,7 @@ npm run build      # 배포용 빌드 → dist/
 - `src/lib/shareParse.ts` — 지도 앱 공유 텍스트 해석
 - `src/lib/places.ts` — 검색 결과 → 내 식당 변환 (분류 매핑, 도보 태그)
 - `src/lib/storage.ts` — localStorage 저장, 백업 파일 검증
-- `src/data/seed.ts` — **예시 데이터 (실제 식당 아님)** → 실제 사용 전 교체
+- `src/data/defaults.ts` — 기본 지역·태그·분류 (식당은 앱에서 직접 등록)
 - `src/pages/` — 오늘 / 내 식당 / 기록 화면
 
 ## 추천 점수
