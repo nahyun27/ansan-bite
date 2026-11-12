@@ -401,6 +401,11 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
           <textarea className={input} rows={2} value={f.memo ?? ''} onChange={(e) => set({ memo: e.target.value })} placeholder="예: 월요일 휴무, 2층 자리 넓음" />
         </div>
 
+        {initial?.addedBy && (
+          <p className="text-center text-xs text-stone-400">
+            {initial.addedBy}님이 추가{initial.updatedBy && initial.updatedBy !== initial.addedBy && ` · 마지막 수정 ${initial.updatedBy}`}
+          </p>
+        )}
         {onDelete && (
           <button type="button" onClick={onDelete} className="w-full py-2 text-sm text-red-500">이 식당 삭제</button>
         )}

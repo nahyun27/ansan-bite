@@ -1,5 +1,6 @@
 import type { AppData, Companion, PriceLevel, Restaurant } from '../types';
 import { daysBetween, lastVisitDate, priceLevelOf, sortVisitsDesc } from './utils';
+import { averageStars } from './remote';
 import { isCafeCategory } from '../data/defaults';
 
 export type Kind = '밥' | '카페';
@@ -84,6 +85,13 @@ export function recommend(data: AppData, c: Conditions, opts: RecommendOptions):
         score += WEIGHTS.stars[r.stars] ?? 0;
         if (r.stars === 5) reasons.push([30, '별 다섯 개 준 곳이에요.']);
         else if (r.stars === 4) reasons.push([25, '별 네 개 준 곳이에요.']);
+      } else {
+        // 내가 안 매긴 곳은 같이 쓰는 사람들 평균을 참고
+        const avg = averageStars(data.allStars, r.id);
+        if (avg) {
+          score += WEIGHTS.stars[Math.round(avg.avg)] ?? 0;
+          if (avg.avg >= 4) reasons.push([26, `다른 사람들 평균 ★${avg.avg.toFixed(1)}이에요.`]);
+        }
       }
 
       if (!last) {

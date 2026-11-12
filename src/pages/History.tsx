@@ -1,12 +1,28 @@
 import { useMemo, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { Cloud, CloudOff, LogOut, RefreshCw, Share2, Users, X } from 'lucide-react';
 import type { AppData } from '../types';
-import type { Actions } from '../lib/useAppData';
+import type { Actions, Sync } from '../lib/useAppData';
 import { exportFileName, normalizeData, parseAppData } from '../lib/storage';
 import { formatPrice, relativeDay, sortVisitsDesc, toDateStr } from '../lib/utils';
 import { StarRating } from '../components/StarRating';
 
-export function HistoryPage({ data, actions }: { data: AppData; actions: Actions }) {
+export function HistoryPage({ data, actions, sync }: { data: AppData; actions: Actions; sync: Sync }) {
+  const isShared = !!sync.nick && sync.status !== 'local';
+  const [copied, setCopied] = useState(false);
+
+  const shareLink = async () => {
+    const url = window.location.origin;
+    const text = 'Ansan Bite — 같이 쓰는 안산 맛집 목록. 비밀번호는 따로 알려줄게!';
+    try {
+      if (navigator.share) return await navigator.share({ title: 'Ansan Bite', text, url });
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* 공유 창을 닫은 경우 등 */
+    }
+  };
+
   const today = toDateStr();
   const month = today.slice(0, 7);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -142,9 +158,44 @@ export function HistoryPage({ data, actions }: { data: AppData; actions: Actions
         <p className="text-xs text-stone-400">식당이 없는 지역만 지울 수 있어요.</p>
       </section>
 
+      {isShared && (
+        <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
+          <h2 className="flex items-center gap-1.5 font-bold"><Users className="size-4" /> 같이 쓰기</h2>
+          <div className="flex items-center justify-between text-sm">
+            <span><b>{sync.nick}</b>(으)로 들어와 있어요</span>
+            <span className={`flex items-center gap-1 text-xs ${sync.status === 'synced' ? 'text-green-600' : sync.status === 'syncing' ? 'text-stone-500' : 'text-amber-600'}`}>
+              {sync.status === 'offline' ? <CloudOff className="size-3.5" /> : <Cloud className="size-3.5" />}
+              {{ syncing: '저장 중', synced: '모두 저장됨', offline: '오프라인', error: '저장 오류', checking: '확인 중', local: '', login: '' }[sync.status]}
+              {sync.pendingCount > 0 && ` · ${sync.pendingCount}개 대기`}
+            </span>
+          </div>
+          {sync.error && sync.status === 'error' && <p className="text-xs text-red-500">{sync.error}</p>}
+          <p className="text-xs text-stone-500">식당 목록은 비밀번호를 아는 모두와 공유돼요. 별점·먹은 기록은 닉네임별로 따로예요.</p>
+          <div className="flex gap-2">
+            <button onClick={shareLink} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white">
+              <Share2 className="size-4" /> {copied ? '링크 복사됨' : '링크 보내기'}
+            </button>
+            <button onClick={sync.retry} className="flex items-center justify-center gap-1 rounded-xl border border-stone-300 px-3 text-sm" aria-label="다시 불러오기">
+              <RefreshCw className="size-4" />
+            </button>
+          </div>
+          <button
+            onClick={() =>
+              confirm(sync.pendingCount ? `아직 저장 안 된 변경 ${sync.pendingCount}개가 사라져요. 그래도 나갈까요?` : '이 기기에서 나갈까요? 공유 목록은 그대로 남아요.') &&
+              sync.logout()
+            }
+            className="flex w-full items-center justify-center gap-1 pt-1 text-xs text-stone-400"
+          >
+            <LogOut className="size-3.5" /> 이 기기에서 나가기
+          </button>
+        </section>
+      )}
+
       <section className="space-y-2 rounded-2xl bg-white p-4 shadow-sm">
         <h2 className="font-bold">백업</h2>
-        <p className="text-xs text-stone-500">데이터는 이 기기 브라우저에만 저장돼요. 가끔 백업 파일로 내보내 두세요.</p>
+        <p className="text-xs text-stone-500">
+          {isShared ? '공유 목록과 내 기록을 파일로 저장해 둘 수 있어요. 불러오면 공유 목록에 추가돼요(지우지는 않아요).' : '데이터는 이 기기 브라우저에만 저장돼요. 가끔 백업 파일로 내보내 두세요.'}
+        </p>
         <div className="flex gap-2">
           <button onClick={onExport} className="flex-1 rounded-xl bg-stone-800 py-2.5 text-sm font-semibold text-white">내보내기</button>
           <button onClick={() => fileRef.current?.click()} className="flex-1 rounded-xl border border-stone-300 py-2.5 text-sm font-semibold">
@@ -163,12 +214,14 @@ export function HistoryPage({ data, actions }: { data: AppData; actions: Actions
           />
         </div>
         {message && <p className="text-sm">{message}</p>}
-        <button
-          onClick={() => confirm('모든 식당과 기록을 지울까요? 되돌릴 수 없어요. 먼저 내보내기로 백업해 두세요.') && actions.resetAll()}
-          className="w-full pt-2 text-xs text-red-400"
-        >
-          모든 데이터 지우기
-        </button>
+        {!isShared && (
+          <button
+            onClick={() => confirm('모든 식당과 기록을 지울까요? 되돌릴 수 없어요. 먼저 내보내기로 백업해 두세요.') && actions.resetAll()}
+            className="w-full pt-2 text-xs text-red-400"
+          >
+            모든 데이터 지우기
+          </button>
+        )}
       </section>
     </div>
   );

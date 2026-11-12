@@ -23,8 +23,12 @@ export interface Restaurant {
   tags: string[];
   mapUrl?: string;
   memo?: string;
-  /** 내 별점 1~5 (식당의 현재 평가는 이 값 하나) */
+  /** 내 별점 1~5 (공유 모드에서는 서버의 내 별점을 여기에 채움) */
   stars?: number;
+  /** 공유 목록: 누가 추가·마지막으로 고쳤는지 (서버가 채움) */
+  addedBy?: string;
+  updatedBy?: string;
+  updatedAt?: number;
   /** 카카오맵에서 가져온 경우 */
   kakaoId?: string;
   address?: string;
@@ -56,6 +60,8 @@ export interface AppData {
   version: 1;
   areas: string[];
   areaCenters?: Record<string, AreaCenter>;
+  /** 공유 모드: 식당 id → 닉네임 → 별점 (평균 표시용) */
+  allStars?: Record<string, Record<string, number>>;
   /** 기존 식당에 자동 태그(가볍게/자극적/술집)를 채운 규칙 버전 */
   autoTagsVersion?: number;
   restaurants: Restaurant[];

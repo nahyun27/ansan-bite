@@ -50,3 +50,15 @@ export function StarBadge({ stars }: { stars?: number }) {
     </span>
   );
 }
+
+/** 공유 모드: 다른 사람들 별점 평균 (나 말고도 매긴 사람이 있을 때만) */
+export function AvgStars({ all, nick }: { all?: Record<string, number>; nick?: string }) {
+  const entries = Object.entries(all ?? {});
+  if (!entries.length || entries.every(([n]) => n === nick)) return null;
+  const avg = entries.reduce((a, [, v]) => a + v, 0) / entries.length;
+  return (
+    <span className="shrink-0 text-xs text-stone-400" title={entries.map(([n, v]) => `${n} ${v}점`).join(', ')}>
+      평균 ★{avg.toFixed(1)} · {entries.length}명
+    </span>
+  );
+}

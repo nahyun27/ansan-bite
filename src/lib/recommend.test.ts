@@ -53,6 +53,13 @@ describe('recommend', () => {
     expect(recommend(d, cond, noJitter)).toHaveLength(3);
   });
 
+  it('내 별점이 없으면 다른 사람들 평균을 참고', () => {
+    const d = { ...data([r('popular', { category: '일식' }), r('plain', { category: '양식' })]), allStars: { popular: { 친구: 5, 동기: 4 } } };
+    const res = recommend(d, cond, noJitter);
+    expect(res[0].restaurant.id).toBe('popular');
+    expect(res[0].reasons[0]).toBe('다른 사람들 평균 ★4.5이에요.');
+  });
+
   it('최근에 먹은 곳은 뒤로 밀린다', () => {
     const d = data([r('recent', { category: '분식' }), r('fresh', { category: '분식' })], [
       { id: 'v', restaurantId: 'recent', date: '2026-11-11' },

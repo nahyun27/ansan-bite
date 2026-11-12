@@ -7,7 +7,7 @@ import { DEFAULT_AREA } from '../data/defaults';
 import { Chip } from '../components/ChipGroup';
 import { RestaurantForm } from '../components/RestaurantForm';
 import { KakaoImport } from '../components/KakaoImport';
-import { StarBadge } from '../components/StarRating';
+import { AvgStars, StarBadge } from '../components/StarRating';
 
 const ALL = '전체';
 const NEEDS_INFO = '보충 필요';
@@ -22,9 +22,11 @@ interface Props {
   /** 안드로이드 공유로 들어온 텍스트 */
   incomingShare?: string;
   onShareConsumed?: () => void;
+  /** 공유 모드 닉네임 */
+  nick?: string;
 }
 
-export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed }: Props) {
+export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed, nick }: Props) {
   const [query, setQuery] = useState('');
   const [area, setArea] = useState(ALL);
   const [editing, setEditing] = useState<Editing | null>(null);
@@ -103,6 +105,7 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
                   <div className="flex items-center gap-1.5">
                     <span className="truncate font-semibold">{r.name}</span>
                     <StarBadge stars={r.stars} />
+                    <AvgStars all={data.allStars?.[r.id]} nick={nick} />
                     {needsInfo(r) && <span className="shrink-0 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700">보충 필요</span>}
                   </div>
                   <div className="truncate text-xs text-stone-500">
@@ -161,7 +164,7 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
               ? undefined
               : () => {
                   const r = editing.restaurant;
-                  if (confirm(`'${r.name}'을(를) 삭제할까요? 이 식당의 방문 기록도 함께 지워져요.`)) {
+                  if (confirm(nick ? `'${r.name}'을(를) 같이 쓰는 목록에서 지울까요? 모두의 목록에서 사라져요.` : `'${r.name}'을(를) 삭제할까요? 이 식당의 방문 기록도 함께 지워져요.`)) {
                     actions.deleteRestaurant(r.id);
                     setEditing(null);
                   }

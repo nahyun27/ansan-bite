@@ -1,17 +1,20 @@
 import { CircleCheck, Map } from 'lucide-react';
 import type { Recommendation } from '../lib/recommend';
 import { naverMapSearchUrl, priceText } from '../lib/utils';
-import { StarBadge } from './StarRating';
+import { AvgStars, StarBadge } from './StarRating';
 
 interface Props {
   rec: Recommendation;
   rank: number;
+  /** 공유 모드: 이 식당의 모두의 별점 */
+  allStars?: Record<string, number>;
+  nick?: string;
   chosen: boolean;
   onChoose: () => void;
   onUndo: () => void;
 }
 
-export function RecommendCard({ rec, rank, chosen, onChoose, onUndo }: Props) {
+export function RecommendCard({ rec, rank, allStars, nick, chosen, onChoose, onUndo }: Props) {
   const r = rec.restaurant;
   return (
     <article
@@ -25,6 +28,7 @@ export function RecommendCard({ rec, rank, chosen, onChoose, onUndo }: Props) {
           <div className="flex items-center gap-1.5">
             <h3 className="truncate text-lg font-bold">{r.name}</h3>
             <StarBadge stars={r.stars} />
+            <AvgStars all={allStars} nick={nick} />
           </div>
           <p className="text-sm text-stone-500">
             {r.category}{r.menus.length > 0 && ` · ${r.menus.slice(0, 3).join(', ')}`} · {priceText(r)}

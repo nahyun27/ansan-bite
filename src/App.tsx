@@ -6,6 +6,8 @@ import { useAppData } from './lib/useAppData';
 import { TodayPage } from './pages/Today';
 import { RestaurantsPage } from './pages/Restaurants';
 import { HistoryPage } from './pages/History';
+import { LoginScreen } from './components/LoginScreen';
+import { SyncBadge } from './components/SyncBadge';
 
 type Tab = 'today' | 'wheel' | 'list' | 'history';
 const TABS: { id: Tab; label: string; Icon: LucideIcon }[] = [
@@ -25,20 +27,24 @@ function readShareParams(): string | undefined {
 }
 
 export default function App() {
-  const { data, actions } = useAppData();
+  const { data, actions, sync } = useAppData();
   const [incomingShare, setIncomingShare] = useState(readShareParams);
   const [tab, setTab] = useState<Tab>(incomingShare ? 'list' : 'today');
   const clearShare = useCallback(() => setIncomingShare(undefined), []);
   const [wheel, setWheel] = useState<WheelCandidate[]>([]);
 
+  if (sync.status === 'login') return <LoginScreen onLogin={sync.login} message={sync.error} />;
+
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col">
+      <SyncBadge sync={sync} onClick={() => setTab('history')} />
       <main className="flex-1 px-4 pt-[max(env(safe-area-inset-top),1.25rem)] pb-28">
         {/* 탭 전환해도 상태(추천 결과 등)가 유지되도록 모두 마운트해 두고 숨김 처리 */}
         <div hidden={tab !== 'today'}><TodayPage
             data={data}
             actions={actions}
             onAddRestaurant={() => setTab('list')}
+            nick={sync.nick}
             onSendToWheel={(c) => {
               setWheel(c);
               setTab('wheel');
@@ -48,8 +54,8 @@ export default function App() {
         </div>
         <div hidden={tab !== 'wheel'}>
           <WheelPage data={data} actions={actions} candidates={wheel} setCandidates={setWheel} /></div>
-        <div hidden={tab !== 'list'}><RestaurantsPage data={data} actions={actions} incomingShare={incomingShare} onShareConsumed={clearShare} /></div>
-        <div hidden={tab !== 'history'}><HistoryPage data={data} actions={actions} /></div>
+        <div hidden={tab !== 'list'}><RestaurantsPage data={data} actions={actions} incomingShare={incomingShare} onShareConsumed={clearShare} nick={sync.nick} /></div>
+        <div hidden={tab !== 'history'}><HistoryPage data={data} actions={actions} sync={sync} /></div>
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex max-w-md">

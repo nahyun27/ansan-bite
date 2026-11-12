@@ -27,11 +27,12 @@ interface Props {
   data: AppData;
   actions: Actions;
   onAddRestaurant: () => void;
+  nick?: string;
   /** 추천 결과를 돌림판 후보로 넘기고 돌림판 탭으로 */
   onSendToWheel: (c: WheelCandidate[]) => void;
 }
 
-export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel }: Props) {
+export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel, nick }: Props) {
   const [cond, setCond] = useState<Conditions>({
     kind: '밥',
     area: data.areas.includes(DEFAULT_AREA) ? DEFAULT_AREA : data.areas[0] ?? '',
@@ -236,6 +237,8 @@ export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel }: Pro
                     key={rec.restaurant.id}
                     rec={rec}
                     rank={i + 1}
+                    allStars={data.allStars?.[rec.restaurant.id]}
+                    nick={nick}
                     chosen={chosen?.restaurantId === rec.restaurant.id}
                     onChoose={() => onChoose(rec.restaurant.id)}
                     onUndo={onUndo}
