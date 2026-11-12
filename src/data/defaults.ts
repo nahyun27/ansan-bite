@@ -34,7 +34,7 @@ export const CAFE_QUICK_TAGS = [...CAFE_USE_TAGS, VIBE_TAG];
 export const ALL_QUICK_TAGS = [...new Set([...QUICK_TAGS, ...CAFE_QUICK_TAGS])];
 /** 이름·분류로 자동으로 붙였다 뗐다 하는 태그 (직접 고른 '분위기 좋음' 등은 건드리지 않음) */
 export const AUTO_TAGS: string[] = [...MOOD_TAGS, DRINK_TAG, HEALTHY_TAG, ...CAFE_USE_TAGS];
-export const SUGGESTED_TAGS = [...QUICK_TAGS, '포장', '비 오는 날', '늦게 먹을 때', '빨리 먹을 때'];
+export const SUGGESTED_TAGS = [...QUICK_TAGS, '포장', '배달', '비 오는 날', '늦게 먹을 때', '빨리 먹을 때'];
 export const CAFE_SUGGESTED_TAGS = [...CAFE_QUICK_TAGS, '콘센트 많음', '조용함', '테라스', '늦게까지'];
 export const MEAL_CATEGORIES = ['한식', '분식', '중식', '일식', '양식', '아시안', '기타'];
 /** 오늘 화면에서 '카페·빵집'을 골랐을 때만 추천되는 분류 */
