@@ -67,8 +67,17 @@ describe('backfillAutoTags', () => {
       { ...base, id: '3', name: '정문 포차', category: '기타', menus: [] },
       { ...base, id: '4', name: '샐러드', category: '양식', menus: [], tags: ['연구실 점심용', '가볍게'] },
     ] });
-    expect(d.restaurants.map((r) => r.tags)).toEqual([['자극적'], ['디저트용'], ['술집'], ['연구실 점심용', '가볍게']]);
+    expect(d.restaurants.map((r) => r.tags)).toEqual([['자극적'], ['디저트용'], ['술집'], ['건강식', '연구실 점심용', '가볍게']]);
     expect(backfillAutoTags(d)).toBe(d); // 한 번만
+  });
+
+  it('v1까지 채운 데이터엔 건강식만 추가 (사용자가 뺀 느낌 태그는 다시 안 붙임)', () => {
+    const base = { area: 'a', goodFor: [], tags: [] as string[] };
+    const d = backfillAutoTags({ version: 1, areas: ['a'], visits: [], autoTagsVersion: 1, restaurants: [
+      { ...base, id: '1', name: '포케올데이', category: '양식', menus: ['포케'] }, // 가볍게는 사용자가 뺐다고 가정
+      { ...base, id: '2', name: '마라공방', category: '중식', menus: ['마라탕'] },
+    ] });
+    expect(d.restaurants.map((r) => r.tags)).toEqual([['건강식'], []]);
   });
 });
 

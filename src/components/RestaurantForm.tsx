@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ClipboardPaste, Coffee, Link2, Loader, MapPin, Phone, Sparkles, TriangleAlert, Utensils, X } from 'lucide-react';
 import type { Companion, PriceLevel, Restaurant } from '../types';
 import { COMPANIONS, PRICE_LEVELS } from '../types';
-import { ALL_QUICK_TAGS, CAFE_CATEGORIES, CAFE_SUGGESTED_TAGS, MEAL_CATEGORIES, MOOD_TAGS, SUGGESTED_TAGS, isCafeCategory } from '../data/defaults';
+import { ALL_QUICK_TAGS, AUTO_TAGS, CAFE_CATEGORIES, CAFE_SUGGESTED_TAGS, MEAL_CATEGORIES, MOOD_TAGS, SUGGESTED_TAGS, isCafeCategory } from '../data/defaults';
 import { newId, onEnter, priceLevelOf } from '../lib/utils';
 import { guessArea, parseShare, type ParsedShare } from '../lib/shareParse';
 import { guessAutoTags, guessCategory } from '../lib/guessCategory';
@@ -77,7 +77,7 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
   const withAutoTags = (r: Restaurant): Restaurant => {
     if (touched.current.tags) return r;
     const auto = guessAutoTags(r.name, r.menus.join(' '), r.category);
-    return { ...r, tags: [...auto, ...r.tags.filter((t) => !ALL_QUICK_TAGS.includes(t))] };
+    return { ...r, tags: [...auto, ...r.tags.filter((t) => !AUTO_TAGS.includes(t))] };
   };
 
   const onPaste = async (text: string) => {

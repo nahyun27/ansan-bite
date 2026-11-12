@@ -1,10 +1,10 @@
 import type { AppData } from '../types';
-import { ALL_QUICK_TAGS, createInitialData, isLegacyExample } from '../data/defaults';
-import { guessAutoTags, guessCategory } from './guessCategory';
+import { AUTO_TAGS, HEALTHY_TAG, createInitialData, isLegacyExample } from '../data/defaults';
+import { guessAutoTags, guessCategory, guessHealthy } from './guessCategory';
 import { sortVisitsDesc } from './utils';
 
 /** 자동 태그 규칙이 바뀌면 올려서 기존 식당에 한 번 더 채움 */
-export const AUTO_TAGS_VERSION = 1;
+export const AUTO_TAGS_VERSION = 2;
 
 const KEY = 'ansan-bite:data';
 
@@ -71,17 +71,22 @@ export function migrateCategories(data: AppData): AppData {
   };
 }
 
-/** 예전에 등록한 식당에 자동 태그를 버전당 한 번만 붙임 (이후엔 사용자가 뺀 걸 존중) */
+/** 예전에 등록한 식당에 자동 태그를 버전마다 한 번씩만 붙임 (이후엔 사용자가 뺀 걸 존중) */
 export function backfillAutoTags(data: AppData): AppData {
-  if ((data.autoTagsVersion ?? 0) >= AUTO_TAGS_VERSION) return data;
+  const from = data.autoTagsVersion ?? 0;
+  if (from >= AUTO_TAGS_VERSION) return data;
   return {
     ...data,
     autoTagsVersion: AUTO_TAGS_VERSION,
     restaurants: data.restaurants.map((r) => {
-      // 이미 자동 태그 종류(가볍게/자극적/술집, 카페 용도)를 하나라도 갖고 있으면 손대지 않음
-      if (r.tags.some((t) => ALL_QUICK_TAGS.includes(t))) return r;
-      const add = guessAutoTags(r.name, r.menus.join(' '), r.category);
-      return add.length ? { ...r, tags: [...add, ...r.tags] } : r;
+      let tags = r.tags;
+      // v1: 가볍게/자극적·술집·카페 용도 — 이미 자동 태그가 하나라도 있으면 손대지 않음
+      if (from < 1 && !tags.some((t) => AUTO_TAGS.includes(t))) {
+        tags = [...guessAutoTags(r.name, r.menus.join(' '), r.category).filter((t) => t !== HEALTHY_TAG), ...tags];
+      }
+      // v2: 건강식
+      if (from < 2 && !tags.includes(HEALTHY_TAG) && guessHealthy(r.name, r.menus.join(' '))) tags = [HEALTHY_TAG, ...tags];
+      return tags === r.tags ? r : { ...r, tags };
     }),
   };
 }

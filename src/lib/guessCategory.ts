@@ -139,8 +139,17 @@ export function guessAutoTags(name: string, menu?: string, category?: string): s
     return tags;
   }
   const tags: string[] = [];
+  if (guessHealthy(name, menu)) tags.push('건강식');
   const mood = guessMood(name, menu);
   if (mood) tags.push(mood);
   if (guessDrink(name, menu)) tags.push('술집');
   return tags;
+}
+
+const HEALTHY = ['샐러드', '포케', '비건', '채식', '건강', '다이어트', '그릭', '곤약', '현미', '보리밥', '두부', '사찰', '월남쌈', '샤브', '오트밀', '아사이'];
+
+/** 이름·메뉴로 건강식 여부 추측 */
+export function guessHealthy(...texts: (string | undefined)[]): boolean {
+  const hay = texts.filter(Boolean).join(' ').replace(/\s+/g, '');
+  return !!hay && HEALTHY.some((k) => hay.includes(k));
 }
