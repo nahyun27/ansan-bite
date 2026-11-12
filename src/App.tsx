@@ -1,14 +1,15 @@
 import { useCallback, useState } from 'react';
+import { BookMarked, CalendarDays, Utensils, type LucideIcon } from 'lucide-react';
 import { useAppData } from './lib/useAppData';
 import { TodayPage } from './pages/Today';
 import { RestaurantsPage } from './pages/Restaurants';
 import { HistoryPage } from './pages/History';
 
 type Tab = 'today' | 'list' | 'history';
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'today', label: '오늘', icon: '🍚' },
-  { id: 'list', label: '내 식당', icon: '📒' },
-  { id: 'history', label: '기록', icon: '🗓️' },
+const TABS: { id: Tab; label: string; Icon: LucideIcon }[] = [
+  { id: 'today', label: '오늘', Icon: Utensils },
+  { id: 'list', label: '내 식당', Icon: BookMarked },
+  { id: 'history', label: '기록', Icon: CalendarDays },
 ];
 
 /** 안드로이드 PWA 공유(share_target)로 열렸을 때 ?title=&text=&url= 을 읽는다 */
@@ -44,7 +45,7 @@ export default function App() {
                 tab === t.id ? 'font-bold text-orange-600' : 'text-stone-500'
               }`}
             >
-              <span className="text-xl leading-none">{t.icon}</span>
+              <t.Icon className="size-5" strokeWidth={tab === t.id ? 2.5 : 2} aria-hidden />
               {t.label}
             </button>
           ))}

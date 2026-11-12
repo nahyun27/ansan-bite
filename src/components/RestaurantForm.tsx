@@ -1,9 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, ChevronLeft, ClipboardPaste, Link2, Loader, MapPin, Phone, Sparkles, TriangleAlert } from 'lucide-react';
 import type { Companion, Restaurant } from '../types';
 import { COMPANIONS } from '../types';
 import { CATEGORIES, SUGGESTED_TAGS } from '../data/defaults';
 import { newId } from '../lib/utils';
 import { guessArea, parseShare, type ParsedShare } from '../lib/shareParse';
+import { guessCategory } from '../lib/guessCategory';
+import { fetchLinkPreview, isKakaoLink } from '../lib/linkPreview';
 import { Chip, ChipGroup } from './ChipGroup';
 
 interface Props {
@@ -27,13 +30,16 @@ const label = 'mb-1.5 block text-sm font-semibold text-stone-500';
 
 export function RestaurantForm({ initial, areas, allTags, defaultArea, existing, pasteFirst, initialShare, onSave, onDelete, onClose }: Props) {
   const isNew = !initial;
-  const [f, setF] = useState<Restaurant>(() => {
-    const base: Restaurant = initial ?? { id: newId(), name: '', area: defaultArea, category: '한식', menu: '', goodFor: ['혼밥', '친구랑'], tags: [] };
-    const shared = initialShare ? parseShare(initialShare) : null;
-    return shared ? applyShare(base, shared, areas) : base;
-  });
-  const [pasteText, setPasteText] = useState(initialShare ?? '');
-  const [pasteResult, setPasteResult] = useState<ParsedShare | null>(() => (initialShare ? parseShare(initialShare) : null));
+  const [f, setF] = useState<Restaurant>(
+    () => initial ?? { id: newId(), name: '', area: defaultArea, category: '한식', menu: '', goodFor: ['혼밥', '친구랑'], tags: [] },
+  );
+  /** 음식 종류·메뉴를 직접 고쳤으면 자동 추측이 덮어쓰지 않음 */
+  const touched = useRef({ category: !isNew, menu: !isNew });
+  const [pasteText, setPasteText] = useState('');
+  const [pasteResult, setPasteResult] = useState<ParsedShare | null>(null);
+  const [guessed, setGuessed] = useState(false);
+  const [loadingPreview, setLoadingPreview] = useState(false);
+  const pasteSeq = useRef(0);
   const canReadClipboard = typeof navigator !== 'undefined' && !!navigator.clipboard?.readText;
   const [areaOptions, setAreaOptions] = useState(areas);
   const [newArea, setNewArea] = useState('');
@@ -49,16 +55,53 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
 
   const set = (patch: Partial<Restaurant>) => setF((x) => ({ ...x, ...patch }));
 
-  const onPaste = (text: string) => {
+  /** 이름(과 공유 텍스트)으로 음식 종류·메뉴 추측해서 채우기 */
+  const withGuess = (r: Restaurant, extraText?: string): Restaurant => {
+    const g = guessCategory(r.name, extraText);
+    setGuessed(!!g && !touched.current.category);
+    if (!g) return r;
+    return {
+      ...r,
+      category: touched.current.category ? r.category : g.category,
+      menu: touched.current.menu || r.menu ? r.menu : g.menu ?? '',
+    };
+  };
+
+  const onPaste = async (text: string) => {
     setPasteText(text);
     const parsed = parseShare(text);
     setPasteResult(parsed);
-    if (parsed) setF((x) => applyShare(x, parsed, areaOptions));
+    if (!parsed) return;
+    setF((x) => withGuess(applyShare(x, parsed, areaOptions), text));
+
+    // 카카오맵 링크인데 이름·주소가 비어 있으면 링크 미리보기에서 보충
+    if (isKakaoLink(parsed.url) && (!parsed.name || !parsed.address)) {
+      const seq = ++pasteSeq.current;
+      setLoadingPreview(true);
+      const preview = await fetchLinkPreview(parsed.url!);
+      if (seq !== pasteSeq.current) return; // 그 사이 다시 붙여넣었으면 무시
+      setLoadingPreview(false);
+      if (!preview) return;
+      const merged: ParsedShare = {
+        ...parsed,
+        name: parsed.name || preview.name || '',
+        address: parsed.address ?? preview.address,
+        kakaoId: parsed.kakaoId ?? preview.kakaoId,
+      };
+      setPasteResult(merged);
+      setF((x) => withGuess(applyShare(x, merged, areaOptions), text));
+    }
   };
+
+  // 안드로이드 공유로 들어온 경우 바로 처리
+  useEffect(() => {
+    if (initialShare) void onPaste(initialShare);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const readClipboard = async () => {
     try {
-      onPaste(await navigator.clipboard.readText());
+      await onPaste(await navigator.clipboard.readText());
     } catch {
       setError('클립보드를 읽지 못했어요. 아래 칸에 직접 붙여넣어 주세요.');
     }
@@ -104,34 +147,48 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
 
   return (
     <div className="fixed inset-0 z-30 overflow-y-auto bg-orange-50">
-      <form onSubmit={submit} className="mx-auto max-w-md space-y-5 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-32">
+      <form id="restaurant-form" onSubmit={submit} className="mx-auto max-w-md space-y-5 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-36">
         <div className="flex items-center justify-between">
-          <button type="button" onClick={onClose} className="text-sm text-stone-500">← 취소</button>
+          <button type="button" onClick={onClose} className="flex items-center text-sm text-stone-500">
+            <ChevronLeft className="size-4" /> 취소
+          </button>
           <h2 className="text-lg font-bold">{initial ? '식당 수정' : '식당 추가'}</h2>
           <span className="w-12" />
         </div>
 
         {isNew && (
           <section className="space-y-2 rounded-2xl border-2 border-dashed border-orange-300 bg-white p-3">
-            <div className="text-sm font-bold text-orange-600">🔗 지도 링크로 채우기</div>
-            <p className="text-xs text-stone-500">카카오맵·네이버지도에서 식당을 열고 <b>공유 → 복사</b>한 뒤 붙여넣으세요.</p>
+            <div className="flex items-center gap-1.5 text-sm font-bold text-orange-600">
+              <Link2 className="size-4" /> 지도 링크로 채우기
+            </div>
+            <p className="text-xs text-stone-500">
+              카카오맵·네이버지도에서 식당을 열고 <b>공유 → 복사</b>한 뒤 붙여넣으세요. 음식 종류는 이름을 보고 추측해서 채워요.
+            </p>
             {canReadClipboard && (
-              <button type="button" onClick={readClipboard} className="w-full rounded-xl bg-orange-500 py-2.5 text-sm font-bold text-white">
-                📋 복사한 내용 붙여넣기
+              <button type="button" onClick={readClipboard} className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-2.5 text-sm font-bold text-white">
+                <ClipboardPaste className="size-4" /> 복사한 내용 붙여넣기
               </button>
             )}
             <textarea
               className={input + ' text-sm'}
               rows={pasteText ? 4 : 2}
               value={pasteText}
-              onChange={(e) => onPaste(e.target.value)}
+              onChange={(e) => void onPaste(e.target.value)}
               placeholder="여기에 길게 눌러 붙여넣기"
               autoFocus={pasteFirst && !canReadClipboard}
             />
-            {pasteResult && (
-              <p className="text-xs text-green-700">
-                ✓ {pasteResult.source}에서 {withObjectParticle(filledFields(pasteResult))} 채웠어요.
-                {!pasteResult.name && ' 이름은 직접 적어주세요.'}
+            {loadingPreview && (
+              <p className="flex items-center gap-1 text-xs text-stone-500">
+                <Loader className="size-3.5 animate-spin" /> 링크에서 식당 정보를 가져오는 중…
+              </p>
+            )}
+            {pasteResult && !loadingPreview && (
+              <p className="flex items-start gap-1 text-xs text-green-700">
+                <Check className="mt-px size-3.5 shrink-0" />
+                <span>
+                  {pasteResult.source}에서 {withObjectParticle(filledFields(pasteResult))} 채웠어요.
+                  {!pasteResult.name && ' 이름은 직접 적어주세요.'}
+                </span>
               </p>
             )}
             {pasteText && !pasteResult && <p className="text-xs text-red-500">링크나 식당 이름을 찾지 못했어요.</p>}
@@ -140,8 +197,18 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
 
         <div>
           <label className={label}>식당 이름 *</label>
-          <input className={input} value={f.name} onChange={(e) => set({ name: e.target.value })} placeholder="예: 든든국밥" autoFocus={isNew && !pasteFirst} />
-          {duplicate && <p className="mt-1 text-xs font-semibold text-amber-600">⚠️ 이미 저장된 식당 같아요: {duplicate.name} ({duplicate.area})</p>}
+          <input
+            className={input}
+            value={f.name}
+            onChange={(e) => setF((x) => (isNew ? withGuess({ ...x, name: e.target.value }) : { ...x, name: e.target.value }))}
+            placeholder="예: 학교앞 국밥집"
+            autoFocus={isNew && !pasteFirst}
+          />
+          {duplicate && (
+            <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-amber-600">
+              <TriangleAlert className="size-3.5" /> 이미 저장된 식당 같아요: {duplicate.name} ({duplicate.area})
+            </p>
+          )}
         </div>
 
         <div>
@@ -153,12 +220,36 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
           </div>
         </div>
 
-        <ChipGroup label="음식 종류" options={categoryOptions} value={f.category} onChange={(category) => set({ category })} />
+        <div>
+          <ChipGroup
+            label="음식 종류"
+            options={categoryOptions}
+            value={f.category}
+            onChange={(category) => {
+              touched.current.category = true;
+              setGuessed(false);
+              set({ category });
+            }}
+          />
+          {guessed && (
+            <p className="mt-1.5 flex items-center gap-1 text-xs text-orange-600">
+              <Sparkles className="size-3.5" /> 이름을 보고 추측했어요. 틀리면 눌러서 바꿔주세요.
+            </p>
+          )}
+        </div>
 
         <div className="grid grid-cols-[1fr_8rem] gap-3">
           <div>
             <label className={label}>대표 메뉴</label>
-            <input className={input} value={f.menu} onChange={(e) => set({ menu: e.target.value })} placeholder="예: 순대국밥" />
+            <input
+              className={input}
+              value={f.menu}
+              onChange={(e) => {
+                touched.current.menu = true;
+                set({ menu: e.target.value });
+              }}
+              placeholder="예: 순대국밥"
+            />
           </div>
           <div>
             <label className={label}>1인 가격(원)</label>
@@ -194,9 +285,10 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
         </div>
 
         {(f.address || f.phone) && (
-          <p className="rounded-xl bg-white px-3 py-2 text-xs text-stone-500">
-            📍 {f.address} {f.phone && <>· ☎ {f.phone}</>}
-          </p>
+          <div className="space-y-1 rounded-xl bg-white px-3 py-2 text-xs text-stone-500">
+            {f.address && <p className="flex items-center gap-1"><MapPin className="size-3.5 shrink-0" /> {f.address}</p>}
+            {f.phone && <p className="flex items-center gap-1"><Phone className="size-3.5 shrink-0" /> {f.phone}</p>}
+          </div>
         )}
 
         <div>
@@ -204,13 +296,20 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
           <textarea className={input} rows={2} value={f.memo ?? ''} onChange={(e) => set({ memo: e.target.value })} placeholder="예: 월요일 휴무, 2층 자리 넓음" />
         </div>
 
-        {error && <p className="text-sm font-semibold text-red-500">{error}</p>}
-
-        <button type="submit" className="w-full rounded-2xl bg-orange-500 py-3.5 font-bold text-white active:bg-orange-600">저장</button>
         {onDelete && (
           <button type="button" onClick={onDelete} className="w-full py-2 text-sm text-red-500">이 식당 삭제</button>
         )}
       </form>
+
+      {/* 저장 버튼은 항상 화면 아래에 — 붙여넣고 바로 저장 가능 */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-stone-200 bg-white/95 px-4 pt-3 pb-[max(env(safe-area-inset-bottom),0.75rem)] backdrop-blur">
+        <div className="mx-auto max-w-md">
+          {error && <p className="mb-2 text-sm font-semibold text-red-500">{error}</p>}
+          <button type="submit" form="restaurant-form" className="w-full rounded-2xl bg-orange-500 py-3.5 font-bold text-white active:bg-orange-600">
+            저장{isNew && ' (나머지는 나중에 채워도 돼요)'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

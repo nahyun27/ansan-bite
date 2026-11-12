@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 import type { AppData } from '../types';
 import type { Actions } from '../lib/useAppData';
 import { exportFileName, parseAppData } from '../lib/storage';
@@ -44,10 +45,10 @@ export function HistoryPage({ data, actions }: { data: AppData; actions: Actions
 
   const onImport = async (file: File) => {
     const parsed = parseAppData(await file.text());
-    if (!parsed) return setMessage('⚠️ Ansan Bite 백업 파일이 아니거나 형식이 깨졌어요.');
+    if (!parsed) return setMessage('Ansan Bite 백업 파일이 아니거나 형식이 깨졌어요.');
     if (confirm(`식당 ${parsed.restaurants.length}곳, 기록 ${parsed.visits.length}개로 지금 데이터를 바꿀까요?`)) {
       actions.replaceData(parsed);
-      setMessage('✅ 백업을 불러왔어요.');
+      setMessage('백업을 불러왔어요.');
     }
   };
 
@@ -97,7 +98,7 @@ export function HistoryPage({ data, actions }: { data: AppData; actions: Actions
                         className="px-1 text-stone-300"
                         aria-label="기록 삭제"
                       >
-                        ✕
+                        <X className="size-4" />
                       </button>
                     </div>
                     <RatingButtons size="sm" value={v.rating} onChange={(rating) => actions.rateVisit(v.id, rating)} />
@@ -118,7 +119,7 @@ export function HistoryPage({ data, actions }: { data: AppData; actions: Actions
               <span key={a} className="flex items-center gap-1 rounded-full bg-stone-100 py-1 pr-1.5 pl-3 text-sm">
                 {a} <span className="text-xs text-stone-400">{used}</span>
                 {used === 0 && (
-                  <button onClick={() => actions.removeArea(a)} className="px-1 text-stone-400" aria-label={`${a} 삭제`}>✕</button>
+                  <button onClick={() => actions.removeArea(a)} className="px-1 text-stone-400" aria-label={`${a} 삭제`}><X className="size-3.5" /></button>
                 )}
               </span>
             );

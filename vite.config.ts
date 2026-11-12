@@ -5,13 +5,20 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { handlePlaces } from './api/places';
+import { handlePreview } from './api/preview';
 
-/** 로컬(dev/preview)에서도 /api/places가 동작하도록 Vercel 함수와 같은 핸들러를 연결 */
+/** 로컬(dev/preview)에서도 /api/*가 동작하도록 Vercel 함수와 같은 핸들러를 연결 */
 function localApi(): Plugin {
   let apiKey: string | undefined;
-  const middleware = async (req: IncomingMessage, res: ServerResponse) => {
+  const routes: Record<string, (req: Request) => Promise<Response>> = {
+    '/api/places': (req) => handlePlaces(req, apiKey),
+    '/api/preview': (req) => handlePreview(req),
+  };
+  const middleware = async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     const url = new URL((req as IncomingMessage & { originalUrl?: string }).originalUrl ?? req.url ?? '/', 'http://localhost');
-    const response = await handlePlaces(new Request(url), apiKey);
+    const handler = routes[url.pathname];
+    if (!handler) return next();
+    const response = await handler(new Request(url));
     res.statusCode = response.status;
     response.headers.forEach((v, k) => res.setHeader(k, v));
     res.end(await response.text());
@@ -22,10 +29,10 @@ function localApi(): Plugin {
       apiKey = loadEnv(config.mode, process.cwd(), '').KAKAO_REST_API_KEY;
     },
     configureServer(server) {
-      server.middlewares.use('/api/places', middleware);
+      server.middlewares.use(middleware);
     },
     configurePreviewServer(server) {
-      server.middlewares.use('/api/places', middleware);
+      server.middlewares.use(middleware);
     },
   };
 }

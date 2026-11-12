@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link2, Plus, Search } from 'lucide-react';
 import type { AppData, Restaurant } from '../types';
-import { RATING_EMOJI } from '../types';
 import type { Actions } from '../lib/useAppData';
 import { currentRating, formatPrice, lastVisitDate, needsInfo, relativeDay, toDateStr } from '../lib/utils';
 import { DEFAULT_AREA } from '../data/defaults';
 import { Chip } from '../components/ChipGroup';
 import { RestaurantForm } from '../components/RestaurantForm';
 import { KakaoImport } from '../components/KakaoImport';
+import { RatingIcon } from '../components/RatingIcon';
 
 const ALL = '전체';
-const NEEDS_INFO = '✏️ 보충 필요';
+const NEEDS_INFO = '보충 필요';
 /** 카카오 장소 검색은 API 키(+카드 등록)가 필요해서 기본은 숨김. .env.local에 VITE_ENABLE_KAKAO_IMPORT=true로 켬 */
 const KAKAO_IMPORT_ENABLED = import.meta.env.VITE_ENABLE_KAKAO_IMPORT === 'true';
 
@@ -57,8 +58,8 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
           <h1 className="text-2xl font-bold">내 식당</h1>
           <p className="text-sm text-stone-500">{data.restaurants.length}곳 저장됨</p>
         </div>
-        <button onClick={() => setEditing({ kind: 'new', pasteFirst: false })} className="rounded-full bg-orange-500 px-4 py-2 text-sm font-bold text-white">
-          + 추가
+        <button onClick={() => setEditing({ kind: 'new', pasteFirst: false })} className="flex items-center gap-1 rounded-full bg-orange-500 px-4 py-2 text-sm font-bold text-white">
+          <Plus className="size-4" /> 추가
         </button>
       </header>
 
@@ -66,15 +67,15 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
         onClick={() => setEditing({ kind: 'new', pasteFirst: true })}
         className="w-full rounded-2xl border-2 border-dashed border-orange-300 bg-white px-4 py-3 text-left active:bg-orange-50"
       >
-        <div className="text-sm font-bold text-orange-600">🔗 지도 링크로 추가</div>
+        <div className="flex items-center gap-1.5 text-sm font-bold text-orange-600"><Link2 className="size-4" /> 지도 링크로 추가</div>
         <div className="mt-0.5 text-xs text-stone-500">카카오맵·네이버지도에서 공유 → 복사한 내용을 붙여넣으면 자동으로 채워져요</div>
       </button>
       {KAKAO_IMPORT_ENABLED && (
         <button
           onClick={() => setImporting(true)}
-          className="w-full rounded-2xl border border-stone-200 bg-white py-2.5 text-sm font-semibold text-stone-600"
+          className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-stone-200 bg-white py-2.5 text-sm font-semibold text-stone-600"
         >
-          🗺️ 카카오맵에서 검색해서 가져오기
+          <Search className="size-4" /> 카카오맵에서 검색해서 가져오기
         </button>
       )}
 
@@ -102,7 +103,7 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="truncate font-semibold">{r.name}</span>
-                    {rating && <span title={rating}>{RATING_EMOJI[rating]}</span>}
+                    {rating && <RatingIcon rating={rating} className={`size-3.5 shrink-0 ${rating === 'again' ? 'fill-rose-500 text-rose-500' : 'text-stone-400'}`} />}
                     {needsInfo(r) && <span className="shrink-0 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-700">보충 필요</span>}
                   </div>
                   <div className="truncate text-xs text-stone-500">
@@ -117,7 +118,7 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed 
         {list.length === 0 && (
           <li className="p-6 text-center text-sm text-stone-400">
             {data.restaurants.length === 0 ? (
-              <>아직 등록한 식당이 없어요.<br />위의 <b className="text-orange-600">🔗 지도 링크로 추가</b>로 첫 식당을 넣어보세요.</>
+              <>아직 등록한 식당이 없어요.<br />위의 <b className="text-orange-600">지도 링크로 추가</b>로 첫 식당을 넣어보세요.</>
             ) : (
               '찾는 식당이 없어요.'
             )}

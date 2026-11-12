@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#f97316"/><text x="256" y="330" font-size="260" text-anchor="middle">🍚</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#f97316"/>
+  <!-- 밥그릇 -->
+  <path d="M112 248h288c0 88-64 152-144 152S112 336 112 248z" fill="#fff"/>
+  <rect x="200" y="400" width="112" height="22" rx="11" fill="#fff"/>
+  <!-- 밥 -->
+  <path d="M136 248c8-56 60-92 120-92s112 36 120 92z" fill="#fff" opacity=".85"/>
+  <!-- 젓가락 -->
+  <rect x="300" y="88" width="16" height="190" rx="8" fill="#7c2d12" transform="rotate(28 308 183)"/>
+  <rect x="336" y="96" width="16" height="190" rx="8" fill="#7c2d12" transform="rotate(28 344 191)"/>
+</svg>

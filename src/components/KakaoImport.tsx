@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Check, ChevronLeft, MapPin, X } from 'lucide-react';
 import type { AppData, AreaCenter, Restaurant } from '../types';
 import { DEFAULT_CENTER_QUERY } from '../data/defaults';
 import { findCenter, isAlreadySaved, parseCategory, placeToRestaurant, searchPlaces, type PlaceResult } from '../lib/places';
@@ -116,7 +117,7 @@ export function KakaoImport({ data, initialArea, onSetCenter, onAdd, onClose }: 
     <div className="fixed inset-0 z-30 overflow-y-auto bg-orange-50">
       <div className="mx-auto max-w-md space-y-4 px-4 pt-[max(env(safe-area-inset-top),1rem)] pb-36">
         <div className="flex items-center justify-between">
-          <button onClick={onClose} className="text-sm text-stone-500">← 닫기</button>
+          <button onClick={onClose} className="flex items-center text-sm text-stone-500"><ChevronLeft className="size-4" /> 닫기</button>
           <h2 className="text-lg font-bold">카카오맵에서 가져오기</h2>
           <span className="w-12" />
         </div>
@@ -135,7 +136,7 @@ export function KakaoImport({ data, initialArea, onSetCenter, onAdd, onClose }: 
               </div>
             ) : (
               <div className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-2 text-sm">
-                <span>📍 {center.label}</span>
+                <span className="flex items-center gap-1"><MapPin className="size-4 text-orange-500" /> {center.label}</span>
                 <button onClick={() => setEditingCenter(true)} className="text-xs text-orange-600 underline">바꾸기</button>
               </div>
             )}
@@ -181,7 +182,7 @@ export function KakaoImport({ data, initialArea, onSetCenter, onAdd, onClose }: 
                           checked ? 'border-orange-500 bg-orange-500 text-white' : 'border-stone-300 bg-white'
                         }`}
                       >
-                        {checked && '✓'}
+                        {checked && <Check className="size-4" strokeWidth={3} />}
                       </button>
                       <button disabled={saved} onClick={() => toggle(p)} className="min-w-0 flex-1 text-left">
                         <div className="truncate font-semibold">
@@ -216,7 +217,7 @@ export function KakaoImport({ data, initialArea, onSetCenter, onAdd, onClose }: 
           <div className="mx-auto flex max-w-md items-center gap-2">
             <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto">
               {[...selected.values()].map(({ place }) => (
-                <span key={place.id} className="shrink-0"><Chip active onClick={() => toggle(place)}>{place.name} ✕</Chip></span>
+                <span key={place.id} className="shrink-0"><Chip active onClick={() => toggle(place)}><span className="flex items-center gap-1">{place.name} <X className="size-3.5" /></span></Chip></span>
               ))}
             </div>
             <button onClick={add} className="shrink-0 rounded-xl bg-orange-500 px-4 py-2.5 text-sm font-bold text-white">

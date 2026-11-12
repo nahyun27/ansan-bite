@@ -7,7 +7,6 @@ export const RATING_LABEL: Record<Rating, string> = {
   okay: '무난해',
   nope: '내 취향 아님',
 };
-export const RATING_EMOJI: Record<Rating, string> = { again: '😍', okay: '🙂', nope: '🙅' };
 
 export interface Restaurant {
   id: string;

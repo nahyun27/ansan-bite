@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Dices, RefreshCw, Sparkles, UtensilsCrossed } from 'lucide-react';
 import type { AppData, Companion } from '../types';
 import { COMPANIONS } from '../types';
 import type { Actions } from '../lib/useAppData';
@@ -147,7 +148,7 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
 
       {data.restaurants.length === 0 && (
         <section className="rounded-2xl border-2 border-dashed border-orange-300 bg-white p-5 text-center">
-          <p className="text-3xl">🍚</p>
+          <UtensilsCrossed className="mx-auto size-9 text-orange-400" aria-hidden />
           <p className="mt-2 font-bold">먼저 내가 가는 식당을 등록해 주세요</p>
           <p className="mt-1 text-sm text-stone-500">지도 앱에서 공유 → 복사한 링크를 붙여넣으면 금방이에요.</p>
           <button onClick={onAddRestaurant} className="mt-3 rounded-xl bg-orange-500 px-5 py-2.5 text-sm font-bold text-white">
@@ -207,9 +208,9 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
         )}
         <button
           onClick={onRecommend}
-          className="w-full rounded-2xl bg-orange-500 py-3.5 text-base font-bold text-white shadow-md shadow-orange-200 active:bg-orange-600"
+          className="flex w-full items-center justify-center gap-1.5 rounded-2xl bg-orange-500 py-3.5 text-base font-bold text-white shadow-md shadow-orange-200 active:bg-orange-600"
         >
-          추천받기 🍚
+          <Sparkles className="size-5" /> 추천받기
         </button>
       </section>
 
@@ -220,7 +221,7 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
             {result.notice && <p className="text-sm text-stone-500">{result.notice}</p>}
             {result.recs.length === 0 ? (
               <p className="rounded-2xl bg-white p-6 text-center text-sm text-stone-500">
-                조건에 맞는 곳이 없어요 😢<br />예산이나 동네를 바꾸거나, <b>내 식당</b>에서 식당을 추가해 보세요.
+                조건에 맞는 곳이 없어요.<br />예산이나 동네를 바꾸거나, <b>내 식당</b>에서 식당을 추가해 보세요.
               </p>
             ) : (
               <>
@@ -239,17 +240,17 @@ export function TodayPage({ data, actions, onAddRestaurant }: { data: AppData; a
                 <div className="flex gap-2">
                   <button
                     onClick={onAnother}
-                    className="flex-1 rounded-xl border border-stone-300 bg-white py-3 text-sm font-semibold text-stone-700 active:bg-stone-100"
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-stone-300 bg-white py-3 text-sm font-semibold text-stone-700 active:bg-stone-100"
                   >
-                    🔄 다른 곳 추천
+                    <RefreshCw className="size-4" /> 다른 곳 추천
                   </button>
                   {result.recs.length > 1 && (
                     <button
                       onClick={onPickForMe}
                       disabled={spinIdx !== null}
-                      className="flex-1 rounded-xl bg-stone-800 py-3 text-sm font-semibold text-white disabled:opacity-60"
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-stone-800 py-3 text-sm font-semibold text-white disabled:opacity-60"
                     >
-                      🎲 그냥 골라줘
+                      <Dices className="size-4" /> 그냥 골라줘
                     </button>
                   )}
                 </div>
