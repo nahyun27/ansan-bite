@@ -35,8 +35,17 @@ export interface Restaurant {
   phone?: string;
   /** 경도(x)/위도(y) */
   coords?: { x: number; y: number };
-  /** 위치를 어떻게 정했는지: exact 주소로 정확히 / approx 길·동네 단위로 대략 / manual 지도에서 직접 / none 못 찾음 */
-  coordsSource?: 'exact' | 'approx' | 'manual' | 'kakao' | 'none';
+  /**
+   * 위치를 어떻게 정했는지
+   * - kakao: 카카오 장소·주소 검색 (정확) / manual: 지도에서 직접
+   * - exact·approx·none: 무료 지도(OSM)로 찾음·대략·못 찾음 → 카카오가 켜지면 approx·none은 다시 찾음
+   * - notfound: 카카오로도 못 찾음
+   */
+  coordsSource?: 'exact' | 'approx' | 'manual' | 'kakao' | 'none' | 'notfound';
+  /** 카카오맵 장소 링크 */
+  kakaoUrl?: string;
+  /** 카카오로 위치 찾기를 이미 해봤는지 (못 찾았어도 다시 시도하지 않게) */
+  kakaoTried?: boolean;
 }
 
 /** 평가는 Visit에만 저장. 식당의 현재 평가는 방문 기록에서 계산한다. */

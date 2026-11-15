@@ -4,7 +4,6 @@ import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import { handlePlaces } from './api/places';
 import { handlePreview } from './api/preview';
 import { handleData, storeFromEnv } from './api/data';
 
@@ -19,10 +18,8 @@ function readBody(req: IncomingMessage): Promise<string> {
 
 /** 로컬(dev/preview)에서도 /api/*가 동작하도록 Vercel 함수와 같은 핸들러를 연결 */
 function localApi(): Plugin {
-  let apiKey: string | undefined;
   let env: Record<string, string> = {};
   const routes: Record<string, (req: Request) => Promise<Response>> = {
-    '/api/places': (req) => handlePlaces(req, apiKey),
     '/api/preview': (req) => handlePreview(req),
     '/api/data': (req) => handleData(req, env.APP_PASSCODE, storeFromEnv(env)),
   };
@@ -42,7 +39,6 @@ function localApi(): Plugin {
     name: 'ansan-bite-local-api',
     configResolved(config) {
       env = loadEnv(config.mode, process.cwd(), '');
-      apiKey = env.KAKAO_REST_API_KEY;
     },
     configureServer(server) {
       server.middlewares.use(middleware);

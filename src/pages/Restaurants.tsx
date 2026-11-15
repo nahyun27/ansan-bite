@@ -9,6 +9,7 @@ import { RestaurantForm } from '../components/RestaurantForm';
 import { KakaoImport } from '../components/KakaoImport';
 import { AvgStars, StarBadge } from '../components/StarRating';
 import { RestaurantMap } from '../components/RestaurantMap';
+import { KAKAO_JS_KEY } from '../lib/kakaoSdk';
 
 const ALL = '전체';
 type Kind = '전체' | '식당' | '카페';
@@ -33,8 +34,8 @@ function Segmented<T extends string>({ options, value, onChange }: { options: { 
     </div>
   );
 }
-/** 카카오 장소 검색은 API 키(+카드 등록)가 필요해서 기본은 숨김. .env.local에 VITE_ENABLE_KAKAO_IMPORT=true로 켬 */
-const KAKAO_IMPORT_ENABLED = import.meta.env.VITE_ENABLE_KAKAO_IMPORT === 'true';
+/** 카카오 지도 키(VITE_KAKAO_JS_KEY)가 있을 때만 '카카오맵에서 검색해서 가져오기' 표시 */
+const KAKAO_IMPORT_ENABLED = !!KAKAO_JS_KEY;
 
 type Editing = { kind: 'edit'; restaurant: Restaurant } | { kind: 'new'; pasteFirst: boolean; share?: string };
 

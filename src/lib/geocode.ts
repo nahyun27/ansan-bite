@@ -4,6 +4,7 @@
  * 정확한 번지를 못 찾으면 길 → 동네 단위로 '대략' 위치를 쓰고, 지도에서 직접 고칠 수 있게 한다.
  */
 import type { Restaurant } from '../types';
+import { addressSearch, keywordSearch, type KakaoNS, type KakaoPlace } from './kakaoSdk';
 
 /** 안산 주변 (left, top, right, bottom) — 다른 도시의 같은 이름이 잡히지 않게 */
 export const ANSAN_VIEWBOX = '126.70,37.42,126.98,37.22';
@@ -100,3 +101,55 @@ export async function geocodeRestaurant(r: Pick<Restaurant, 'name' | 'address'>)
   }
   return approx;
 }
+
+// ---- 카카오 (키가 있을 때) ----
+
+const norm = (s: string) => s.replace(/\s+/g, '').toLowerCase();
+
+/** 이름 검색 결과 중 이 식당으로 볼 만한 것 고르기 */
+export function pickKakaoPlace(places: KakaoPlace[], r: Pick<Restaurant, 'name' | 'address'>): KakaoPlace | null {
+  const inAnsan = places.filter((p) => /안산/.test(p.address_name) || /안산/.test(p.road_address_name));
+  if (!inAnsan.length) return null;
+  const name = norm(r.name);
+  const addr = r.address ? norm(trimToNumber(r.address)) : '';
+  // 1) 주소가 같은 곳 2) 이름이 같거나 서로 포함 3) 결과가 하나뿐이면 그것
+  return (
+    (addr && inAnsan.find((p) => norm(p.road_address_name).startsWith(addr) || norm(p.address_name).startsWith(addr))) ||
+    inAnsan.find((p) => norm(p.place_name) === name) ||
+    inAnsan.find((p) => norm(p.place_name).includes(name) || name.includes(norm(p.place_name))) ||
+    (inAnsan.length === 1 ? inAnsan[0] : null)
+  );
+}
+
+export interface KakaoGeoResult {
+  coords: { x: number; y: number };
+  kakaoId?: string;
+  kakaoUrl?: string;
+}
+
+/** 카카오로 위치 찾기: 이름(안산 근처) → 주소 */
+export async function geocodeKakao(kakao: KakaoNS, r: Pick<Restaurant, 'name' | 'address'>): Promise<KakaoGeoResult | null> {
+  const center = new kakao.maps.LatLng(ANSAN_CENTER.y, ANSAN_CENTER.x);
+  const { places } = await keywordSearch(kakao, r.name, { location: center, radius: 20000 });
+  const hit = pickKakaoPlace(places, r);
+  if (hit) return { coords: { x: Number(hit.x), y: Number(hit.y) }, kakaoId: hit.id, kakaoUrl: hit.place_url };
+  if (r.address) {
+    const found = (await addressSearch(kakao, trimToNumber(r.address))) ?? (await addressSearch(kakao, r.address));
+    if (found) return { coords: found };
+  }
+  return null;
+}
+
+/**
+ * 위치를 (다시) 찾아야 하는 식당
+ * - 직접 찍었거나 카카오로 찾은 곳은 그대로
+ * - 카카오가 있으면: 위치가 없거나 무료 지도로 '대략'·'못 찾음'인 곳을 카카오로 한 번씩
+ * - 무료 지도만: 위치가 없고 아직 안 찾아본 곳
+ */
+export function needsLookup(r: Restaurant, kakao: boolean): boolean {
+  const src = r.coordsSource;
+  if (src === 'manual' || src === 'kakao' || src === 'notfound') return false;
+  if (kakao) return !r.kakaoTried && (!r.coords || src === 'approx' || src === 'none');
+  return !r.coords && src !== 'none';
+}
+

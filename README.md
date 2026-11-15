@@ -24,24 +24,26 @@ npm run build      # 배포용 빌드 → dist/
 안드로이드에서 홈 화면에 설치(PWA)하면 지도 앱 공유 메뉴에 **Ansan Bite**가 바로 나타남(Share Target).
 아이폰은 Share Target을 지원하지 않아 붙여넣기로 사용.
 
-## (선택) 카카오 장소 검색으로 가져오기
-카카오맵 API 사용 설정 시 결제 카드 등록이 필요해서 **기본으로 꺼둠**. 켜려면 아래 설정 + `.env.local`에 `VITE_ENABLE_KAKAO_IMPORT=true`.
+## 카카오 지도 (선택, 권장)
+키가 없으면 무료 지도(OpenStreetMap)로 동작하고, 위치는 주소로 대략 찾음.
+카카오 키를 넣으면 지도가 카카오맵으로 바뀌고, 식당 이름으로 정확한 위치를 찾으며, '카카오맵에서 검색해서 가져오기'가 켜짐.
 
-1. [Kakao Developers](https://developers.kakao.com)에서 앱 생성 → **REST API 키** 복사
-2. 앱 설정에서 **카카오맵 API 사용 설정**이 꺼져 있으면 켜기 (꺼져 있으면 403 오류)
-3. 로컬: `cp .env.example .env.local` 후 `KAKAO_REST_API_KEY` 입력 → `npm run dev`
-4. 배포(Vercel): 프로젝트 환경 변수에 `KAKAO_REST_API_KEY` 등록
+1. [Kakao Developers](https://developers.kakao.com) 앱 → **카카오맵 사용 설정 ON** (결제 수단 등록 필요, 무료 사용량 안에서는 과금 없음)
+2. **앱 키 → JavaScript 키** 복사
+3. **플랫폼 → Web → 사이트 도메인**: `https://ansan-bite.vercel.app` (로컬 개발 시 `http://localhost:5173`도)
+4. Vercel 환경 변수 `VITE_KAKAO_JS_KEY` 추가 → Redeploy (빌드할 때 들어가는 값이라 다시 배포해야 반영)
 
-키는 서버(`api/places.ts`, Vercel Function)에서만 쓰이고 브라우저로는 전달되지 않음.
-로컬에서는 Vite 미들웨어가 같은 핸들러를 실행함.
+JavaScript 키는 브라우저에 공개되는 키라 도메인 등록으로 보호됨.
 
 ## 구조
 - `src/lib/recommend.ts` — 걸러내기 + 점수 계산 (가중치는 `WEIGHTS`에서 조정)
-- `api/places.ts` — 카카오 로컬 API 프록시 (Vercel Function)
 - `src/lib/shareParse.ts` — 지도 앱 공유 텍스트 해석
 - `src/lib/guessCategory.ts` — 이름으로 음식 종류·메뉴 추측 (규칙 추가는 여기)
 - `api/preview.ts` — 카카오맵 링크 미리보기 (카카오 주소만 허용)
-- `src/lib/places.ts` — 검색 결과 → 내 식당 변환 (분류 매핑, 도보 태그)
+- `src/lib/kakaoSdk.ts` — 카카오 지도 SDK 불러오기·검색
+- `src/lib/places.ts` — 카카오 검색 결과 → 내 식당 변환
+- `src/lib/geocode.ts` — 위치 찾기 (카카오 / 무료 Nominatim)
+- `src/lib/mapAdapter.ts` — 지도 그리기 (카카오 / Leaflet)
 - `src/lib/storage.ts` — localStorage 저장, 백업 파일 검증
 - `src/data/defaults.ts` — 기본 지역·태그·분류 (식당은 앱에서 직접 등록)
 - `src/pages/` — 오늘 / 내 식당 / 기록 화면

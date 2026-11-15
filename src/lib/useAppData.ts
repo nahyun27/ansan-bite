@@ -275,10 +275,11 @@ export function useAppData() {
 
   /** 식당 위치 저장 (지도에서 찾거나 직접 찍은 것) → 공유 목록에도 반영 */
   const setLocation = useCallback(
-    (id: string, coords: Restaurant['coords'], source: NonNullable<Restaurant['coordsSource']>) => {
+    (id: string, coords: Restaurant['coords'], source: NonNullable<Restaurant['coordsSource']>, extra?: Pick<Restaurant, 'kakaoId' | 'kakaoUrl' | 'kakaoTried'>) => {
       const r = dataRef.current.restaurants.find((x) => x.id === id);
       if (!r) return;
-      apply([{ op: 'upsertRestaurant', restaurant: sharedPart({ ...r, coords, coordsSource: source }) }]);
+      const next = { ...r, coords, coordsSource: source, ...Object.fromEntries(Object.entries(extra ?? {}).filter(([, v]) => v !== undefined)) };
+      apply([{ op: 'upsertRestaurant', restaurant: sharedPart(next) }]);
     },
     [apply],
   );

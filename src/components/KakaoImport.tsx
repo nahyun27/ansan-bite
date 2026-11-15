@@ -27,6 +27,7 @@ const input = 'w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 te
 export function KakaoImport({ data, initialArea, onSetCenter, onAdd, onClose }: Props) {
   const [area, setArea] = useState(initialArea);
   const [radius, setRadius] = useState<number>(1000);
+  const [placeKind, setPlaceKind] = useState<'FD6' | 'CE7'>('FD6');
   const [query, setQuery] = useState('');
   const [centerQuery, setCenterQuery] = useState('');
   const [editingCenter, setEditingCenter] = useState(false);
@@ -89,7 +90,7 @@ export function KakaoImport({ data, initialArea, onSetCenter, onAdd, onClose }: 
     setLoading(true);
     setError('');
     try {
-      const res = await searchPlaces({ query: query.trim(), category: 'FD6', center, radius, page: nextPage });
+      const res = await searchPlaces({ query: query.trim(), category: placeKind, center, radius, page: nextPage });
       setResults((prev) => (nextPage === 1 ? res.places : [...prev, ...res.places.filter((p) => !prev.some((q) => q.id === p.id))]));
       setPage(nextPage);
       setIsEnd(res.isEnd);
@@ -141,6 +142,18 @@ export function KakaoImport({ data, initialArea, onSetCenter, onAdd, onClose }: 
               </div>
             )}
           </div>
+
+          <ChipGroup<'FD6' | 'CE7'>
+            label="무엇을 찾을까?"
+            options={['FD6', 'CE7']}
+            value={placeKind}
+            onChange={(k) => {
+              setPlaceKind(k);
+              setResults([]);
+              setSearched(false);
+            }}
+            render={(k) => (k === 'FD6' ? '식당' : '카페·빵집')}
+          />
 
           <ChipGroup<number>
             label="반경"

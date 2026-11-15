@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 import { Crosshair, Loader, MapPin, X } from 'lucide-react';
 import type { Restaurant } from '../types';
 import type { Actions } from '../lib/useAppData';
-import { isCafeCategory } from '../data/defaults';
-import { ANSAN_CENTER, geocodeRestaurant } from '../lib/geocode';
-import { naverMapSearchUrl, priceText } from '../lib/utils';
+import { geocodeKakao, geocodeRestaurant, needsLookup } from '../lib/geocode';
+import { KAKAO_JS_KEY, loadKakao, type KakaoNS } from '../lib/kakaoSdk';
+import { kakaoAdapter, leafletAdapter, type MapAdapter } from '../lib/mapAdapter';
 
 interface Props {
   /** 필터가 적용된 식당 목록 */
@@ -17,25 +15,12 @@ interface Props {
   active: boolean;
 }
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
-
-function pinIcon(r: Restaurant) {
-  const cafe = isCafeCategory(r.category);
-  const approx = r.coordsSource === 'approx';
-  const label = r.stars ? `★${r.stars}` : esc(r.category.slice(0, 1));
-  return L.divIcon({
-    className: '',
-    html: `<div class="ab-pin ${cafe ? 'ab-pin-cafe' : ''} ${approx ? 'ab-pin-approx' : ''}"><span>${label}</span></div>`,
-    iconSize: [34, 42],
-    iconAnchor: [17, 40],
-    popupAnchor: [0, -36],
-  });
-}
-
 export function RestaurantMap({ restaurants, actions, onEdit, active }: Props) {
   const box = useRef<HTMLDivElement>(null);
-  const map = useRef<L.Map | null>(null);
-  const layer = useRef<L.LayerGroup | null>(null);
+  const adapter = useRef<MapAdapter | null>(null);
+  const kakaoRef = useRef<KakaoNS | null>(null);
+  const [engine, setEngine] = useState<'loading' | 'kakao' | 'osm'>(KAKAO_JS_KEY ? 'loading' : 'osm');
+  const [mapError, setMapError] = useState('');
   const fitted = useRef(false);
   const [picking, setPicking] = useState<Restaurant | null>(null);
   const pickingRef = useRef<Restaurant | null>(null);
@@ -51,84 +36,79 @@ export function RestaurantMap({ restaurants, actions, onEdit, active }: Props) {
   const missing = useMemo(() => restaurants.filter((r) => !r.coords), [restaurants]);
   const approx = useMemo(() => restaurants.filter((r) => r.coords && r.coordsSource === 'approx'), [restaurants]);
 
-  // 지도 만들기 (한 번)
+  // 카카오 키가 있으면 카카오 지도, 불러오기 실패하면 무료 지도로
   useEffect(() => {
-    if (!box.current || map.current) return;
-    const m = L.map(box.current, { zoomControl: true, attributionControl: true }).setView([ANSAN_CENTER.y, ANSAN_CENTER.x], 14);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(m);
-    layer.current = L.layerGroup().addTo(m);
-    m.on('click', (e: L.LeafletMouseEvent) => {
+    if (engine !== 'loading') return;
+    loadKakao()
+      .then((k) => {
+        kakaoRef.current = k;
+        setEngine('kakao');
+      })
+      .catch((e: Error) => {
+        setMapError(e.message);
+        setEngine('osm');
+      });
+  }, [engine]);
+
+  // 지도 만들기 (엔진이 정해지면 한 번)
+  useEffect(() => {
+    if (!box.current || engine === 'loading') return;
+    const a = engine === 'kakao' && kakaoRef.current ? kakaoAdapter(box.current, kakaoRef.current) : leafletAdapter(box.current);
+    a.onClick((p) => {
       const r = pickingRef.current;
       if (!r) return;
-      actionsRef.current.setLocation(r.id, { x: e.latlng.lng, y: e.latlng.lat }, 'manual');
+      actionsRef.current.setLocation(r.id, p, 'manual');
       setPicking(null);
     });
-    // 숨겨졌다 보이거나 크기가 바뀌면 다시 맞춤
-    const ro = new ResizeObserver(() => m.invalidateSize());
+    adapter.current = a;
+    fitted.current = false;
+    const ro = new ResizeObserver(() => a.relayout());
     ro.observe(box.current);
-    map.current = m;
     return () => {
       ro.disconnect();
-      m.remove();
-      map.current = null;
+      a.destroy();
+      adapter.current = null;
     };
-  }, []);
+  }, [engine]);
 
   // 핀 다시 그리기
   useEffect(() => {
-    const m = map.current;
-    const g = layer.current;
-    if (!m || !g) return;
-    g.clearLayers();
-    for (const r of placed) {
-      const popup = document.createElement('div');
-      popup.className = 'ab-popup';
-      popup.innerHTML = `
-        <b>${esc(r.name)}</b>${r.stars ? ` <span class="ab-star">★${r.stars}</span>` : ''}
-        <div class="ab-meta">${esc([r.category, r.menus.slice(0, 2).join(', '), priceText(r)].filter(Boolean).join(' · '))}</div>
-        ${r.coordsSource === 'approx' ? '<div class="ab-approx">대략적인 위치예요</div>' : ''}
-        <div class="ab-actions">
-          <a href="${esc(r.mapUrl || naverMapSearchUrl(r.name))}" target="_blank" rel="noreferrer">지도 앱</a>
-          <button data-act="move">위치 고치기</button>
-          <button data-act="edit">수정</button>
-        </div>`;
-      popup.querySelector('[data-act="edit"]')!.addEventListener('click', () => onEditRef.current(r));
-      popup.querySelector('[data-act="move"]')!.addEventListener('click', () => {
-        m.closePopup();
-        setPicking(r);
-      });
-      L.marker([r.coords!.y, r.coords!.x], { icon: pinIcon(r), title: r.name }).bindPopup(popup).addTo(g);
-    }
-    // 처음 한 번은 모든 핀이 보이게
+    const a = adapter.current;
+    if (!a) return;
+    a.setPins(placed, { onEdit: (r) => onEditRef.current(r), onMove: (r) => setPicking(r) });
     if (!fitted.current && placed.length) {
-      m.fitBounds(L.latLngBounds(placed.map((r) => [r.coords!.y, r.coords!.x])), { padding: [36, 36], maxZoom: 16 });
+      a.fit(placed);
       fitted.current = true;
     }
-  }, [placed]);
+  }, [placed, engine]);
 
-  // 위치 없는 식당은 주소로 자동 찾기 (1초에 1곳, 못 찾은 건 다시 안 찾음)
-  // 최신 목록을 보면서 이번에 시도한 식당은 건너뛰어, 위치가 채워질 때마다 처음부터 다시 돌지 않게
+  // 위치 자동 찾기: 최신 목록을 보면서 이번에 시도한 식당은 건너뜀
   const latest = useRef(restaurants);
   latest.current = restaurants;
   const tried = useRef(new Set<string>());
-  const pendingCount = restaurants.filter((r) => !r.coords && r.coordsSource !== 'none' && !tried.current.has(r.id)).length;
+  const useKakao = engine === 'kakao';
+  const pendingCount = restaurants.filter((r) => needsLookup(r, useKakao) && !tried.current.has(r.id)).length;
   useEffect(() => {
-    if (!active || pendingCount === 0) return;
+    if (!active || engine === 'loading' || pendingCount === 0) return;
     let cancelled = false;
     (async () => {
       let done = 0;
       for (;;) {
-        const next = latest.current.find((r) => !r.coords && r.coordsSource !== 'none' && !tried.current.has(r.id));
+        const pending = latest.current.filter((r) => needsLookup(r, useKakao) && !tried.current.has(r.id));
+        const next = pending[0];
         if (!next || cancelled) break;
-        const left = latest.current.filter((r) => !r.coords && r.coordsSource !== 'none' && !tried.current.has(r.id)).length;
-        setProgress({ done, total: done + left });
+        setProgress({ done, total: done + pending.length });
         tried.current.add(next.id);
         try {
-          const found = await geocodeRestaurant(next);
-          actionsRef.current.setLocation(next.id, found?.coords, found ? found.source : 'none');
+          if (useKakao && kakaoRef.current) {
+            const found = await geocodeKakao(kakaoRef.current, next);
+            if (found) actionsRef.current.setLocation(next.id, found.coords, 'kakao', { kakaoId: found.kakaoId, kakaoUrl: found.kakaoUrl, kakaoTried: true });
+            // 카카오로도 못 찾으면: 무료 지도로 찾은 대략 위치는 남겨두고 다시 찾지 않게만 표시
+            else actionsRef.current.setLocation(next.id, next.coords, next.coords ? 'approx' : 'notfound', { kakaoTried: true });
+          } else {
+            const found = await geocodeRestaurant(next);
+            actionsRef.current.setLocation(next.id, found?.coords, found ? found.source : 'none');
+          }
         } catch {
           tried.current.delete(next.id); // 네트워크 오류: 다음에 지도를 열 때 다시
           break;
@@ -140,15 +120,20 @@ export function RestaurantMap({ restaurants, actions, onEdit, active }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [active, pendingCount > 0]);
+  }, [active, engine, useKakao, pendingCount > 0]);
 
   const fixList = [...missing, ...approx];
 
   return (
     <div className="space-y-3">
-      <div className={`relative overflow-hidden rounded-2xl shadow-sm ${picking ? 'ab-picking' : ''}`}>
-        {/* Leaflet이 이 칸에 class를 붙이므로 React가 className을 바꾸지 않게 고정 */}
+      <div className={`relative overflow-hidden rounded-2xl bg-stone-100 shadow-sm ${picking ? 'ab-picking' : ''}`}>
+        {/* 지도 라이브러리가 이 칸을 직접 다루므로 React가 className을 바꾸지 않게 고정 */}
         <div ref={box} className="h-[58vh] min-h-80 w-full" />
+        {engine === 'loading' && (
+          <div className="absolute inset-0 flex items-center justify-center text-sm text-stone-500">
+            <Loader className="mr-1.5 size-4 animate-spin" /> 지도 불러오는 중
+          </div>
+        )}
         {picking && (
           <div className="absolute inset-x-3 top-3 z-[1000] flex items-center gap-2 rounded-xl bg-stone-900/90 px-3 py-2 text-sm text-white">
             <Crosshair className="size-4 shrink-0" />
@@ -158,10 +143,13 @@ export function RestaurantMap({ restaurants, actions, onEdit, active }: Props) {
         )}
         {progress && !picking && (
           <div className="absolute inset-x-3 bottom-3 z-[1000] flex items-center gap-2 rounded-xl bg-white/95 px-3 py-2 text-xs text-stone-600 shadow">
-            <Loader className="size-3.5 animate-spin" /> 주소로 위치 찾는 중 {progress.done}/{progress.total}
+            <Loader className="size-3.5 animate-spin" /> {useKakao ? '카카오로' : '주소로'} 위치 찾는 중 {progress.done}/{progress.total}
           </div>
         )}
       </div>
+      {mapError && KAKAO_JS_KEY && (
+        <p className="text-xs text-amber-700">{mapError} 지금은 무료 지도로 보여드려요.</p>
+      )}
 
       {fixList.length > 0 && (
         <section className="space-y-2 rounded-2xl bg-white p-4 shadow-sm">
@@ -174,7 +162,7 @@ export function RestaurantMap({ restaurants, actions, onEdit, active }: Props) {
                 <span className="min-w-0 flex-1 truncate">
                   {r.name}{' '}
                   <span className="text-xs text-stone-400">
-                    {r.coords ? '대략 위치' : r.coordsSource === 'none' ? '못 찾음' : '찾는 중'}
+                    {r.coords ? '대략 위치' : r.coordsSource === 'none' || r.coordsSource === 'notfound' ? '못 찾음' : '찾는 중'}
                   </span>
                 </span>
                 <button
