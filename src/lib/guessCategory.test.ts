@@ -33,3 +33,14 @@ describe('guessCategory', () => {
     expect(guessCategory('어나더레벨', '[네이버 지도] 어나더레벨 · 이탈리아음식 파스타')).toEqual({ category: '양식', menu: '파스타' });
   });
 });
+
+describe('guessDinner', () => {
+  it('고기·곱창·족발은 저녁, 갈비탕·백반은 아님', async () => {
+    const { guessDinner, guessAutoTags } = await import('./guessCategory');
+    expect(guessDinner('명륜진사갈비 숯불돼지갈비')).toBe(true);
+    expect(guessDinner('황소곱창')).toBe(true);
+    expect(guessDinner('가양 갈비탕')).toBe(false);
+    expect(guessDinner('엄마손 백반')).toBe(false);
+    expect(guessAutoTags('원조 족발보쌈')).toContain('저녁');
+  });
+});

@@ -143,7 +143,17 @@ export function guessAutoTags(name: string, menu?: string, category?: string): s
   const mood = guessMood(name, menu);
   if (mood) tags.push(mood);
   if (guessDrink(name, menu)) tags.push('술집');
+  if (guessDinner(name, menu)) tags.push('저녁');
   return tags;
+}
+
+/** 저녁에 가기 좋은 무거운 음식 (고기·곱창·족발 등). '갈비탕'처럼 점심 메뉴는 안 걸리게 구체적으로 */
+const DINNER = ['삼겹', '오겹', '목살', '고깃집', '고기집', '갈비살', '돼지갈비', '소갈비', '한우', '숯불', '생고기', '곱창', '막창', '대창', '족발', '보쌈', '양꼬치', '훠궈', '닭갈비', '장어', '횟집', '조개구이', '아구찜', '아귀찜', '해물찜', '낙곱새'];
+
+/** 이름·메뉴로 저녁에 가기 좋은 곳인지 추측 */
+export function guessDinner(...texts: (string | undefined)[]): boolean {
+  const hay = texts.filter(Boolean).join(' ').replace(/\s+/g, '');
+  return !!hay && DINNER.some((k) => hay.includes(k));
 }
 
 const HEALTHY = ['샐러드', '포케', '비건', '채식', '건강', '다이어트', '그릭', '곤약', '현미', '보리밥', '두부', '사찰', '월남쌈', '샤브', '오트밀', '아사이'];

@@ -38,6 +38,13 @@ export function WheelPage({ data, actions, candidates, setCandidates }: Props) {
   const [query, setQuery] = useState('');
   const [preset, setPreset] = useState<Preset | null>(null);
   const [count, setCount] = useState(6);
+  /** null = 모든 지역 */
+  const [pickedArea, setArea] = useState<string | null>(null);
+  // 식당이 있는 지역만 (지역 순서는 지역 관리 순서)
+  const areaOptions = data.areas.filter((a) => data.restaurants.some((r) => r.area === a));
+  // 고른 지역의 식당이 다 없어지면 모든 지역으로
+  const area = pickedArea && areaOptions.includes(pickedArea) ? pickedArea : null;
+  const inArea = (r: AppData['restaurants'][number], a = area) => !a || r.area === a;
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [resultIdx, setResultIdx] = useState<number | null>(null);
@@ -53,20 +60,20 @@ export function WheelPage({ data, actions, candidates, setCandidates }: Props) {
     const lower = q.toLowerCase();
     return data.restaurants
       .filter((r) => !inWheel.has(r.id))
-      .filter((r) => !preset || preset === '랜덤' || matchesKind(r, preset))
+      .filter((r) => inArea(r) && (!preset || preset === '랜덤' || matchesKind(r, preset)))
       .filter((r) => !lower || [r.name, ...r.menus, r.category].some((s) => s.toLowerCase().includes(lower)))
       .sort((a, b) => (b.stars ?? 0) - (a.stars ?? 0) || a.name.localeCompare(b.name, 'ko'))
       .slice(0, 8);
-  }, [data.restaurants, candidates, q, preset]);
+  }, [data.restaurants, candidates, q, preset, area]);
 
-  const presetPool = (p: Preset) => data.restaurants.filter((r) => r.stars !== 1 && (p === '랜덤' || matchesKind(r, p)));
+  const presetPool = (p: Preset, a = area) => data.restaurants.filter((r) => r.stars !== 1 && inArea(r, a) && (p === '랜덤' || matchesKind(r, p)));
 
   /** 간편 옵션: 그 종류 식당 중 고른 개수만큼 무작위로 돌림판을 새로 채움 */
-  const fillPreset = (p: Preset, howMany = count) => {
+  const fillPreset = (p: Preset, howMany = count, a = area) => {
     if (spinning) return;
     setPreset(p);
     reset();
-    setCandidates(shuffle(presetPool(p)).slice(0, howMany).map((r) => ({ id: newId(), label: r.name, restaurantId: r.id })));
+    setCandidates(shuffle(presetPool(p, a)).slice(0, howMany).map((r) => ({ id: newId(), label: r.name, restaurantId: r.id })));
   };
 
   const reset = () => {
@@ -261,6 +268,26 @@ export function WheelPage({ data, actions, candidates, setCandidates }: Props) {
                 ))}
               </span>
             </div>
+            {areaOptions.length > 1 && (
+              <div className="mb-2 flex gap-1.5 overflow-x-auto pb-0.5" role="group" aria-label="지역">
+                {[null, ...areaOptions].map((a) => (
+                  <button
+                    key={a ?? '__all'}
+                    onClick={() => {
+                      setArea(a);
+                      if (preset) fillPreset(preset, count, a);
+                    }}
+                    disabled={spinning}
+                    aria-pressed={area === a}
+                    className={`shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs ${
+                      area === a ? 'bg-stone-800 font-semibold text-white' : 'bg-stone-100 text-stone-600'
+                    }`}
+                  >
+                    {a ?? '모든 지역'}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
               {PRESETS.map((p) => {
                 const count = presetPool(p).length;
