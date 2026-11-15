@@ -27,3 +27,25 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .animate-pop, .wheel-spinning .wheel-light { animation: none; }
 }
+
+/* 지도 핀·팝업 */
+.ab-pin {
+  width: 34px; height: 34px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg);
+  background: #f97316; border: 2.5px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,.3);
+  display: flex; align-items: center; justify-content: center;
+}
+.ab-pin span { transform: rotate(45deg); color: #fff; font: 800 11px/1 -apple-system, "Apple SD Gothic Neo", sans-serif; }
+.ab-pin-cafe { background: #92400e; }
+.ab-pin-approx { opacity: .55; border-style: dashed; }
+.ab-popup { min-width: 170px; font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; }
+.ab-popup b { font-size: 15px; }
+.ab-star { color: #d97706; font-weight: 700; font-size: 12px; }
+.ab-meta { color: #78716c; font-size: 12px; margin-top: 2px; }
+.ab-approx { color: #b45309; font-size: 11px; margin-top: 4px; }
+.ab-actions { display: flex; gap: 6px; margin-top: 8px; }
+.ab-actions a, .ab-actions button {
+  flex: 1; text-align: center; font-size: 12px; font-weight: 600; padding: 5px 6px; border-radius: 8px;
+  background: #ffedd5; color: #c2410c; border: 0; text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.leaflet-container { font-family: inherit; }
+.ab-picking .leaflet-container { cursor: crosshair; }

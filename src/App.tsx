@@ -54,7 +54,7 @@ export default function App() {
         </div>
         <div hidden={tab !== 'wheel'}>
           <WheelPage data={data} actions={actions} candidates={wheel} setCandidates={setWheel} /></div>
-        <div hidden={tab !== 'list'}><RestaurantsPage data={data} actions={actions} incomingShare={incomingShare} onShareConsumed={clearShare} nick={sync.nick} /></div>
+        <div hidden={tab !== 'list'}><RestaurantsPage data={data} actions={actions} incomingShare={incomingShare} onShareConsumed={clearShare} nick={sync.nick} active={tab === 'list'} /></div>
         <div hidden={tab !== 'history'}><HistoryPage data={data} actions={actions} sync={sync} /></div>
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-stone-200 bg-white/95 backdrop-blur pb-[env(safe-area-inset-bottom)]">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link2, Plus, Search } from 'lucide-react';
+import { Link2, List, Map as MapIcon, Plus, Search } from 'lucide-react';
 import type { AppData, Restaurant } from '../types';
 import type { Actions } from '../lib/useAppData';
 import { lastVisitDate, needsInfo, priceText, relativeDay, toDateStr } from '../lib/utils';
@@ -8,6 +8,7 @@ import { Chip } from '../components/ChipGroup';
 import { RestaurantForm } from '../components/RestaurantForm';
 import { KakaoImport } from '../components/KakaoImport';
 import { AvgStars, StarBadge } from '../components/StarRating';
+import { RestaurantMap } from '../components/RestaurantMap';
 
 const ALL = '전체';
 type Kind = '전체' | '식당' | '카페';
@@ -45,11 +46,14 @@ interface Props {
   onShareConsumed?: () => void;
   /** 공유 모드 닉네임 */
   nick?: string;
+  /** 이 탭이 지금 보이는지 */
+  active?: boolean;
 }
 
-export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed, nick }: Props) {
+export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed, nick, active = true }: Props) {
   const [query, setQuery] = useState('');
   const [area, setArea] = useState(ALL);
+  const [view, setView] = useState<'list' | 'map'>('list');
   const [kind, setKind] = useState<Kind>('전체');
   const [service, setService] = useState<Service>('전체');
   const [needsOnly, setNeedsOnly] = useState(false);
@@ -120,12 +124,26 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed,
 
       {notice && <p className="rounded-2xl bg-green-100 p-3 text-sm text-green-900">{notice}</p>}
 
-      <input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="이름, 메뉴, 태그로 검색"
-        className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2.5 outline-none focus:border-orange-400"
-      />
+      <div className="flex gap-2">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="이름, 메뉴, 태그로 검색"
+          className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-white px-3 py-2.5 outline-none focus:border-orange-400"
+        />
+        <div className="flex shrink-0 rounded-xl bg-stone-200/60 p-0.5">
+          {([['list', List, '목록'], ['map', MapIcon, '지도']] as const).map(([v, Icon, label]) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              aria-pressed={view === v}
+              className={`flex items-center gap-1 rounded-lg px-2.5 text-sm font-semibold ${view === v ? 'bg-white text-orange-600 shadow-sm' : 'text-stone-500'}`}
+            >
+              <Icon className="size-4" /> {label}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="space-y-2">
         <div className="grid grid-cols-[3fr_2fr] gap-2">
           <Segmented options={KINDS} value={kind} onChange={setKind} />
@@ -157,7 +175,16 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed,
         </div>
       </div>
 
-      <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white shadow-sm">
+      {view === 'map' && (
+        <RestaurantMap
+          restaurants={list}
+          actions={actions}
+          onEdit={(r) => setEditing({ kind: 'edit', restaurant: r })}
+          active={active}
+        />
+      )}
+
+      {view === 'list' && <ul className="divide-y divide-stone-100 overflow-hidden rounded-2xl bg-white shadow-sm">
         {list.map((r) => {
           const last = lastVisitDate(r.id, data.visits);
           return (
@@ -188,7 +215,7 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed,
             )}
           </li>
         )}
-      </ul>
+      </ul>}
 
       {importing && (
         <KakaoImport

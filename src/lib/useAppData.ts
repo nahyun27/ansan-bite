@@ -273,6 +273,16 @@ export function useAppData() {
     [apply],
   );
 
+  /** 식당 위치 저장 (지도에서 찾거나 직접 찍은 것) → 공유 목록에도 반영 */
+  const setLocation = useCallback(
+    (id: string, coords: Restaurant['coords'], source: NonNullable<Restaurant['coordsSource']>) => {
+      const r = dataRef.current.restaurants.find((x) => x.id === id);
+      if (!r) return;
+      apply([{ op: 'upsertRestaurant', restaurant: sharedPart({ ...r, coords, coordsSource: source }) }]);
+    },
+    [apply],
+  );
+
   const setAreaCenter = useCallback((area: string, center: AreaCenter) => {
     setData((d) => ({ ...d, areaCenters: { ...d.areaCenters, [area]: center } }));
   }, []);
@@ -361,7 +371,7 @@ export function useAppData() {
     actions: {
       addVisit, rateVisit, skipRating, deleteVisit,
       saveRestaurant, addRestaurants, deleteRestaurant,
-      addArea, removeArea, setAreaCenter,
+      addArea, removeArea, setAreaCenter, setLocation,
       replaceData, resetAll,
     },
     sync: { status, error, nick: session?.nick, pendingCount, login, logout, retry },
