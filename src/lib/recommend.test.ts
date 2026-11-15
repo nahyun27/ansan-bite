@@ -44,6 +44,12 @@ describe('filterCandidates', () => {
     expect(ids('카페')).toEqual(['cafe']);
   });
 
+  it('점심 태그가 붙은 술집은 점심에도 나온다', () => {
+    const d = data([r('pub', { tags: ['술집', '점심'] })]);
+    expect(filterCandidates(d, cond).map((x) => x.id)).toEqual(['pub']);
+    expect(recommend(d, cond, noJitter)[0].reasons).toContain('점심으로 찍어둔 곳이에요.');
+  });
+
   it('기본값: 오후 4시 전 점심, 그 뒤 저녁', () => {
     expect(defaultKind(new Date(2026, 10, 15, 11))).toBe('점심');
     expect(defaultKind(new Date(2026, 10, 15, 18))).toBe('저녁');

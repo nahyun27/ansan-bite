@@ -7,7 +7,7 @@ import { COMPANIONS, PRICE_LEVELS } from '../types';
 import type { Actions } from '../lib/useAppData';
 import { KINDS, defaultKind, makeJitter, recommend, type Conditions, type Kind, type Recommendation } from '../lib/recommend';
 import { relativeDay, sortVisitsDesc, toDateStr } from '../lib/utils';
-import { ALL_QUICK_TAGS, CAFE_QUICK_TAGS, DEFAULT_AREA, DRINK_TAG, MOOD_TAGS, QUICK_TAGS, isCafeCategory } from '../data/defaults';
+import { ALL_QUICK_TAGS, CAFE_QUICK_TAGS, DEFAULT_AREA, DRINK_TAG, LUNCH_TAG, MOOD_TAGS, QUICK_TAGS, isCafeCategory } from '../data/defaults';
 import { Chip, ChipGroup } from '../components/ChipGroup';
 import { StarRating } from '../components/StarRating';
 import { InstallBanner } from '../components/InstallGuide';
@@ -60,7 +60,7 @@ export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel, nick 
     data.restaurants
       .filter((r) => r.area === cond.area && isCafeCategory(r.category) === (cond.kind === '카페'))
       .flatMap((r) => r.tags)
-      .filter((t) => !t.startsWith('도보') && !ALL_QUICK_TAGS.includes(t))
+      .filter((t) => !t.startsWith('도보') && t !== LUNCH_TAG && !ALL_QUICK_TAGS.includes(t))
       .forEach((t) => count.set(t, (count.get(t) ?? 0) + 1));
     const others = [...count.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t).slice(0, 6);
     return [...quick, ...others];

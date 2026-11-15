@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AppData, AreaCenter, Restaurant } from '../types';
-import { createInitialData } from '../data/defaults';
+import { createInitialData, renameTags } from '../data/defaults';
 import { loadData, saveData } from './storage';
 import { newId, toDateStr } from './utils';
 import {
@@ -170,7 +170,16 @@ export function useAppData() {
     meta.current = { ...meta.current, personalVersion: snap.personalVersion, personalSynced: JSON.stringify(remoteVisits) };
     persistMeta();
 
-    const next = { ...mergeSnapshot(local, snap, s.nick, outbox.current), visits };
+    let next = { ...mergeSnapshot(local, snap, s.nick, outbox.current), visits };
+    // 공유 목록에 남아 있는 예전 태그(연구실 점심용 등)를 새 이름으로 바꿔서 올림
+    const renameOps: Op[] = next.restaurants
+      .filter((x) => renameTags(x.tags) !== x.tags)
+      .map((x) => ({ op: 'upsertRestaurant', restaurant: sharedPart({ ...x, tags: renameTags(x.tags) }) }));
+    if (renameOps.length) {
+      outbox.current.push(...renameOps);
+      persistOutbox();
+      next = { ...applyOps(next, renameOps, s.nick), visits };
+    }
     dataRef.current = next;
     setData(next);
     await flush();

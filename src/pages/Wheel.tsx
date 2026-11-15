@@ -5,6 +5,22 @@ import type { Actions } from '../lib/useAppData';
 import { indexAtTop, targetRotation, type WheelCandidate } from '../lib/wheel';
 import { naverMapSearchUrl, newId, onEnter } from '../lib/utils';
 import { StarBadge } from '../components/StarRating';
+import { KINDS, matchesKind, type Kind } from '../lib/recommend';
+
+/** 랜덤 = 종류 상관없이 아무 데서나 */
+type Preset = '랜덤' | Kind;
+const PRESETS: Preset[] = ['랜덤', ...KINDS];
+const COUNTS = [4, 6, 8];
+
+/** 섞어서 앞에서부터 */
+function shuffle<T>(xs: T[]): T[] {
+  const a = [...xs];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
 interface Props {
   data: AppData;
@@ -20,6 +36,8 @@ const DURATION = 4000;
 
 export function WheelPage({ data, actions, candidates, setCandidates }: Props) {
   const [query, setQuery] = useState('');
+  const [preset, setPreset] = useState<Preset | null>(null);
+  const [count, setCount] = useState(6);
   const [rotation, setRotation] = useState(0);
   const [spinning, setSpinning] = useState(false);
   const [resultIdx, setResultIdx] = useState<number | null>(null);
@@ -35,10 +53,21 @@ export function WheelPage({ data, actions, candidates, setCandidates }: Props) {
     const lower = q.toLowerCase();
     return data.restaurants
       .filter((r) => !inWheel.has(r.id))
+      .filter((r) => !preset || preset === '랜덤' || matchesKind(r, preset))
       .filter((r) => !lower || [r.name, ...r.menus, r.category].some((s) => s.toLowerCase().includes(lower)))
       .sort((a, b) => (b.stars ?? 0) - (a.stars ?? 0) || a.name.localeCompare(b.name, 'ko'))
       .slice(0, 8);
-  }, [data.restaurants, candidates, q]);
+  }, [data.restaurants, candidates, q, preset]);
+
+  const presetPool = (p: Preset) => data.restaurants.filter((r) => r.stars !== 1 && (p === '랜덤' || matchesKind(r, p)));
+
+  /** 간편 옵션: 그 종류 식당 중 고른 개수만큼 무작위로 돌림판을 새로 채움 */
+  const fillPreset = (p: Preset, howMany = count) => {
+    if (spinning) return;
+    setPreset(p);
+    reset();
+    setCandidates(shuffle(presetPool(p)).slice(0, howMany).map((r) => ({ id: newId(), label: r.name, restaurantId: r.id })));
+  };
 
   const reset = () => {
     setResultIdx(null);
@@ -211,6 +240,48 @@ export function WheelPage({ data, actions, candidates, setCandidates }: Props) {
 
       {/* 후보 */}
       <section className="space-y-3 rounded-2xl bg-white p-4 shadow-sm">
+        {data.restaurants.length > 0 && (
+          <div>
+            <div className="mb-1.5 flex items-center justify-between text-sm font-semibold text-stone-500">
+              <span>무작위로 채우기</span>
+              <span className="flex items-center gap-0.5 rounded-lg bg-stone-100 p-0.5 text-xs" role="group" aria-label="몇 개">
+                {COUNTS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => {
+                      setCount(c);
+                      if (preset) fillPreset(preset, c);
+                    }}
+                    disabled={spinning}
+                    aria-pressed={count === c}
+                    className={`whitespace-nowrap rounded-md px-2 py-1 ${count === c ? 'bg-white font-bold text-orange-600 shadow-sm' : 'font-normal text-stone-500'}`}
+                  >
+                    {c}개
+                  </button>
+                ))}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((p) => {
+                const count = presetPool(p).length;
+                return (
+                  <button
+                    key={p}
+                    onClick={() => fillPreset(p)}
+                    disabled={spinning || count === 0}
+                    className={`flex items-center gap-1 rounded-full px-3.5 py-1.5 text-sm font-semibold disabled:opacity-40 ${
+                      preset === p ? 'bg-orange-500 text-white' : 'border border-stone-200 bg-white text-stone-700 active:bg-stone-100'
+                    }`}
+                  >
+                    {preset === p && <Shuffle className="size-3.5" />} {p}
+                    <span className={`text-xs font-normal ${preset === p ? 'text-orange-100' : 'text-stone-400'}`}>{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between">
           <h2 className="font-bold">
             후보 <span className="text-sm font-normal text-stone-400">{n}/{MAX}</span>

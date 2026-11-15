@@ -1,7 +1,7 @@
 import type { AppData, Companion, PriceLevel, Restaurant } from '../types';
 import { daysBetween, lastVisitDate, priceLevelOf, sortVisitsDesc } from './utils';
 import { averageStars } from './remote';
-import { DRINK_TAG, isCafeCategory } from '../data/defaults';
+import { DRINK_TAG, LUNCH_TAG, isCafeCategory } from '../data/defaults';
 
 export type Kind = '점심' | '저녁' | '술' | '카페';
 export const KINDS: Kind[] = ['점심', '저녁', '술', '카페'];
@@ -11,14 +11,14 @@ export function defaultKind(now = new Date()): Kind {
   return now.getHours() < 16 ? '점심' : '저녁';
 }
 
-/** 끼니 종류에 맞는지: 점심은 술집 빼고, 저녁은 식당 전부, 술은 술집만, 카페는 카페·빵집·디저트만 */
+/** 끼니 종류에 맞는지: 점심은 술집 빼고(점심 태그가 있으면 술집이어도 포함), 저녁은 식당 전부, 술은 술집만, 카페는 카페·빵집·디저트만 */
 export function matchesKind(r: Restaurant, kind: Kind): boolean {
   const cafe = isCafeCategory(r.category);
   if (kind === '카페') return cafe;
   if (cafe) return false;
   const drink = r.tags.includes(DRINK_TAG);
   if (kind === '술') return drink;
-  if (kind === '점심') return !drink;
+  if (kind === '점심') return !drink || r.tags.includes(LUNCH_TAG);
   return true;
 }
 
@@ -133,6 +133,11 @@ export function recommend(data: AppData, c: Conditions, opts: RecommendOptions):
       for (const t of c.tags.filter((t) => r.tags.includes(t))) {
         score += WEIGHTS.tagMatch;
         reasons.push([20, `'${t}'에 딱이에요.`]);
+      }
+
+      if (c.kind === '점심' && r.tags.includes(LUNCH_TAG)) {
+        score += WEIGHTS.tagMatch;
+        reasons.push([18, '점심으로 찍어둔 곳이에요.']);
       }
 
       if (r.tags.includes('도보 5분')) reasons.push([4, '걸어서 5분이면 가요.']);

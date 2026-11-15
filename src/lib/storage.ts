@@ -1,5 +1,5 @@
 import type { AppData } from '../types';
-import { AUTO_TAGS, HEALTHY_TAG, createInitialData, isLegacyExample } from '../data/defaults';
+import { AUTO_TAGS, HEALTHY_TAG, createInitialData, isLegacyExample, renameTags } from '../data/defaults';
 import { guessAutoTags, guessCategory, guessHealthy } from './guessCategory';
 import { sortVisitsDesc } from './utils';
 
@@ -23,7 +23,13 @@ export function loadData(): AppData {
 
 /** 불러온 데이터(로컬 저장·백업 파일)를 최신 형식으로 */
 export function normalizeData(data: AppData): AppData {
-  return backfillAutoTags(migrateCategories(removeLegacyExamples(migrateRatings(migrateMenus(data)))));
+  return renameOldTags(backfillAutoTags(migrateCategories(removeLegacyExamples(migrateRatings(migrateMenus(data))))));
+}
+
+/** 없앤 태그(연구실 점심용 등)를 새 이름으로 */
+export function renameOldTags(data: AppData): AppData {
+  if (data.restaurants.every((r) => renameTags(r.tags) === r.tags)) return data;
+  return { ...data, restaurants: data.restaurants.map((r) => (renameTags(r.tags) === r.tags ? r : { ...r, tags: renameTags(r.tags) })) };
 }
 
 /** 예전 3단계 평가(visit.rating) → 별점. 또 갈래 5 / 무난해 3 / 내 취향 아님 1, 식당 별점은 가장 최근 평가 */
