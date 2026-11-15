@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, ChevronLeft, ClipboardPaste, Coffee, Link2, Loader, MapPin, Phone, Sparkles, TriangleAlert, Utensils, X } from 'lucide-react';
 import type { Companion, PriceLevel, Restaurant } from '../types';
 import { COMPANIONS, PRICE_LEVELS } from '../types';
-import { ALL_QUICK_TAGS, AUTO_TAGS, CAFE_CATEGORIES, CAFE_SUGGESTED_TAGS, MEAL_CATEGORIES, MOOD_TAGS, SUGGESTED_TAGS, isCafeCategory } from '../data/defaults';
+import { ALL_QUICK_TAGS, AUTO_TAGS, CAFE_CATEGORIES, CAFE_SUGGESTED_TAGS, MEAL_CATEGORIES, MEAL_ONLY_TAGS, MOOD_TAGS, SUGGESTED_TAGS, isCafeCategory } from '../data/defaults';
 import { newId, onEnter, priceLevelOf } from '../lib/utils';
 import { guessArea, parseShare, type ParsedShare } from '../lib/shareParse';
 import { guessAutoTags, guessCategory } from '../lib/guessCategory';
@@ -133,7 +133,7 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
       ...f.tags,
       ...allTags.filter((t) => !ALL_QUICK_TAGS.includes(t) && !t.startsWith('도보')),
     ]),
-  ];
+  ].filter((t) => !(isCafe && MEAL_ONLY_TAGS.includes(t))); // 늦게/빨리 나옴은 밥집에만
   const kindCategories = isCafe ? CAFE_CATEGORIES : MEAL_CATEGORIES;
   const categoryOptions = kindCategories.includes(f.category) ? kindCategories : [...kindCategories, f.category];
 
@@ -145,7 +145,8 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
       const g = guessCategory(x.name);
       const category = g && isCafeCategory(g.category) === cafe ? g.category : cafe ? '카페' : '한식';
       setGuessed(!!g && isCafeCategory(g.category) === cafe);
-      return withAutoTags({ ...x, category });
+      const tags = cafe ? x.tags.filter((t) => !MEAL_ONLY_TAGS.includes(t)) : x.tags;
+      return withAutoTags({ ...x, category, tags });
     });
   };
 
@@ -192,6 +193,7 @@ export function RestaurantForm({ initial, areas, allTags, defaultArea, existing,
     if (f.goodFor.length === 0) return setError('누구랑 갈 곳인지 하나 이상 골라주세요.');
     onSave({
       ...f,
+      tags: isCafe ? f.tags.filter((t) => !MEAL_ONLY_TAGS.includes(t)) : f.tags,
       name: f.name.trim(),
       menus: [...f.menus, ...newMenu.split(/[,，、]/).map((m) => m.trim()).filter(Boolean)].filter((m, i, a) => a.indexOf(m) === i),
       mapUrl: f.mapUrl?.trim() || undefined,

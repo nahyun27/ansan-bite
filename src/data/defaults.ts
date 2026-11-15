@@ -30,7 +30,9 @@ export const LUNCH_TAG = '점심';
 /** 저녁에만 가기 좋은 무거운 곳 (고깃집·곱창·족발 등): 점심 추천에서 빠짐 */
 export const DINNER_TAG = '저녁';
 /** 예전 태그 → 새 이름 (없앤 태그는 바꿔서 남김) */
-export const RENAMED_TAGS: Record<string, string> = { '연구실 점심용': LUNCH_TAG };
+export const RENAMED_TAGS: Record<string, string> = { '연구실 점심용': LUNCH_TAG, '늦게 먹을 때': '늦게 나옴', '빨리 먹을 때': '빨리 나옴' };
+/** 밥집에만 붙는 태그: 카페·빵집에서는 고를 수 없음 */
+export const MEAL_ONLY_TAGS = ['늦게 나옴', '빨리 나옴'];
 /** 예전 태그 이름을 바꾸고 겹치면 하나로. 바뀐 게 없으면 같은 배열 그대로 */
 export function renameTags(tags: string[]): string[] {
   if (!tags.some((t) => t in RENAMED_TAGS)) return tags;
@@ -45,7 +47,7 @@ export const CAFE_QUICK_TAGS = [...CAFE_USE_TAGS, VIBE_TAG];
 export const ALL_QUICK_TAGS = [...new Set([...QUICK_TAGS, ...CAFE_QUICK_TAGS])];
 /** 이름·분류로 자동으로 붙였다 뗐다 하는 태그 (직접 고른 '분위기 좋음' 등은 건드리지 않음) */
 export const AUTO_TAGS: string[] = [...MOOD_TAGS, DRINK_TAG, HEALTHY_TAG, DINNER_TAG, ...CAFE_USE_TAGS];
-export const SUGGESTED_TAGS = [...QUICK_TAGS, LUNCH_TAG, DINNER_TAG, '포장', '배달', '비 오는 날', '늦게 먹을 때', '빨리 먹을 때'];
+export const SUGGESTED_TAGS = [...QUICK_TAGS, LUNCH_TAG, DINNER_TAG, '포장', '배달', '비 오는 날', ...MEAL_ONLY_TAGS];
 export const CAFE_SUGGESTED_TAGS = [...CAFE_QUICK_TAGS, '콘센트 많음', '조용함', '테라스', '늦게까지'];
 export const MEAL_CATEGORIES = ['한식', '분식', '중식', '일식', '양식', '아시안', '기타'];
 /** 오늘 화면에서 '카페·빵집'을 골랐을 때만 추천되는 분류 */
