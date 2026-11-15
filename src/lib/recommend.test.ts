@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AppData, Restaurant, Visit } from '../types';
-import { filterCandidates, recommend, type Conditions } from './recommend';
+import { defaultKind, filterCandidates, recommend, type Conditions } from './recommend';
 import { formatPrice } from './utils';
 
 const r = (id: string, over: Partial<Restaurant> = {}): Restaurant => ({
@@ -10,7 +10,7 @@ const r = (id: string, over: Partial<Restaurant> = {}): Restaurant => ({
 const data = (restaurants: Restaurant[], visits: Visit[] = []): AppData => ({
   version: 1, areas: ['학교 근처', '중앙역'], restaurants, visits,
 });
-const cond: Conditions = { kind: '밥', area: '학교 근처', companion: '혼밥', priceLevel: '싼 곳', tags: [] };
+const cond: Conditions = { kind: '점심', area: '학교 근처', companion: '혼밥', priceLevel: '싼 곳', tags: [] };
 const TODAY = '2026-11-12';
 const noJitter = { today: TODAY, jitter: {} };
 
@@ -33,6 +33,20 @@ describe('filterCandidates', () => {
     const d = data([r('rice'), r('cafe', { category: '카페' }), r('bread', { category: '빵집' })]);
     expect(filterCandidates(d, cond).map((x) => x.id)).toEqual(['rice']);
     expect(filterCandidates(d, { ...cond, kind: '카페' }).map((x) => x.id)).toEqual(['cafe', 'bread']);
+  });
+
+  it('점심은 술집 빼고, 저녁은 전부, 술은 술집만', () => {
+    const d = data([r('rice'), r('pub', { tags: ['술집'] }), r('cafe', { category: '카페', tags: ['술집'] })]);
+    const ids = (kind: Conditions['kind']) => filterCandidates(d, { ...cond, kind }).map((x) => x.id);
+    expect(ids('점심')).toEqual(['rice']);
+    expect(ids('저녁')).toEqual(['rice', 'pub']);
+    expect(ids('술')).toEqual(['pub']);
+    expect(ids('카페')).toEqual(['cafe']);
+  });
+
+  it('기본값: 오후 4시 전 점심, 그 뒤 저녁', () => {
+    expect(defaultKind(new Date(2026, 10, 15, 11))).toBe('점심');
+    expect(defaultKind(new Date(2026, 10, 15, 18))).toBe('저녁');
   });
 
   it('가격대: 직접 고른 값이 가격보다 우선', () => {

@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Coffee, FerrisWheel, RefreshCw, Sparkles, Utensils, UtensilsCrossed } from 'lucide-react';
+import { Beer, Coffee, FerrisWheel, Moon, RefreshCw, Sparkles, Sun, UtensilsCrossed } from 'lucide-react';
 import type { WheelCandidate } from '../lib/wheel';
 import { newId } from '../lib/utils';
 import type { AppData, Companion, PriceLevel } from '../types';
 import { COMPANIONS, PRICE_LEVELS } from '../types';
 import type { Actions } from '../lib/useAppData';
-import { makeJitter, recommend, type Conditions, type Kind, type Recommendation } from '../lib/recommend';
+import { KINDS, defaultKind, makeJitter, recommend, type Conditions, type Kind, type Recommendation } from '../lib/recommend';
 import { relativeDay, sortVisitsDesc, toDateStr } from '../lib/utils';
-import { ALL_QUICK_TAGS, CAFE_QUICK_TAGS, DEFAULT_AREA, MOOD_TAGS, QUICK_TAGS, isCafeCategory } from '../data/defaults';
+import { ALL_QUICK_TAGS, CAFE_QUICK_TAGS, DEFAULT_AREA, DRINK_TAG, MOOD_TAGS, QUICK_TAGS, isCafeCategory } from '../data/defaults';
 import { Chip, ChipGroup } from '../components/ChipGroup';
 import { StarRating } from '../components/StarRating';
 import { InstallBanner } from '../components/InstallGuide';
@@ -16,6 +16,8 @@ import { RecommendCard } from '../components/RecommendCard';
 const PRICE_OPTIONS: (PriceLevel | null)[] = [null, ...PRICE_LEVELS];
 const priceLabel = (p: PriceLevel | null) => p ?? '상관없음';
 const isMood = (t: string) => (MOOD_TAGS as readonly string[]).includes(t);
+const KIND_ICON = { 점심: Sun, 저녁: Moon, 술: Beer, 카페: Coffee } as const;
+const KIND_LABEL: Record<Kind, string> = { 점심: '점심', 저녁: '저녁', 술: '술', 카페: '카페' };
 
 interface Result {
   recs: Recommendation[];
@@ -35,7 +37,7 @@ interface Props {
 
 export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel, nick }: Props) {
   const [cond, setCond] = useState<Conditions>({
-    kind: '밥',
+    kind: defaultKind(),
     area: data.areas.includes(DEFAULT_AREA) ? DEFAULT_AREA : data.areas[0] ?? '',
     companion: '혼밥',
     priceLevel: null,
@@ -50,9 +52,10 @@ export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel, nick 
     if (!data.areas.includes(cond.area) && data.areas.length) setCond((c) => ({ ...c, area: data.areas[0] }));
   }, [data.areas, cond.area]);
 
-  // 밥: 가볍게·자극적·술집 / 카페: 공부용·수다용·디저트용 이 항상 맨 앞, 그 뒤로 이 지역에 많이 붙은 태그
+  // 식당: 가볍게·자극적·술집… / 카페: 공부용·수다용·디저트용 이 항상 맨 앞, 그 뒤로 이 지역에 많이 붙은 태그
+  // (점심·술에서는 술집 태그가 이미 정해져 있으니 빼고)
   const tagOptions = useMemo(() => {
-    const quick = cond.kind === '카페' ? CAFE_QUICK_TAGS : QUICK_TAGS;
+    const quick = cond.kind === '카페' ? CAFE_QUICK_TAGS : cond.kind === '저녁' ? QUICK_TAGS : QUICK_TAGS.filter((t) => t !== DRINK_TAG);
     const count = new Map<string, number>();
     data.restaurants
       .filter((r) => r.area === cond.area && isCafeCategory(r.category) === (cond.kind === '카페'))
@@ -170,18 +173,18 @@ export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel, nick 
       )}
 
       <section className="space-y-4 rounded-2xl bg-white p-4 shadow-sm">
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-stone-100 p-1">
-          {(['밥', '카페'] as Kind[]).map((k) => {
-            const Icon = k === '밥' ? Utensils : Coffee;
+        <div className="grid grid-cols-4 gap-1 rounded-xl bg-stone-100 p-1">
+          {KINDS.map((k) => {
+            const Icon = KIND_ICON[k];
             return (
               <button
                 key={k}
                 onClick={() => updateCond({ kind: k, tags: [] })}
-                className={`flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-bold ${
+                className={`flex items-center justify-center gap-1 rounded-lg py-2 text-sm font-bold ${
                   cond.kind === k ? 'bg-white text-orange-600 shadow-sm' : 'text-stone-500'
                 }`}
               >
-                <Icon className="size-4" /> {k === '밥' ? '밥' : '카페·빵집'}
+                <Icon className="size-4" /> {KIND_LABEL[k]}
               </button>
             );
           })}
@@ -229,6 +232,8 @@ export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel, nick 
               <p className="rounded-2xl bg-white p-6 text-center text-sm text-stone-500">
                 {cond.kind === '카페' && !data.restaurants.some((r) => isCafeCategory(r.category)) ? (
                   <>아직 등록한 카페·빵집이 없어요.<br /><b>내 식당 → 추가</b>에서 음식 종류를 <b>카페·빵집·디저트</b>로 고르면 여기 나와요.</>
+                ) : cond.kind === '술' && !data.restaurants.some((r) => r.tags.includes(DRINK_TAG)) ? (
+                  <>아직 <b>술집</b> 태그가 붙은 곳이 없어요.<br /><b>내 식당</b>에서 식당을 수정해 <b>술집</b> 태그를 붙이면 여기 나와요.</>
                 ) : (
                   <>조건에 맞는 곳이 없어요.<br />가격대·태그를 풀거나 동네를 바꾸거나, <b>내 식당</b>에서 추가해 보세요.</>
                 )}

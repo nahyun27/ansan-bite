@@ -1,12 +1,29 @@
 import type { AppData, Companion, PriceLevel, Restaurant } from '../types';
 import { daysBetween, lastVisitDate, priceLevelOf, sortVisitsDesc } from './utils';
 import { averageStars } from './remote';
-import { isCafeCategory } from '../data/defaults';
+import { DRINK_TAG, isCafeCategory } from '../data/defaults';
 
-export type Kind = '밥' | '카페';
+export type Kind = '점심' | '저녁' | '술' | '카페';
+export const KINDS: Kind[] = ['점심', '저녁', '술', '카페'];
+
+/** 지금 시각에 맞는 기본값: 오후 4시 전이면 점심, 그 뒤로는 저녁 */
+export function defaultKind(now = new Date()): Kind {
+  return now.getHours() < 16 ? '점심' : '저녁';
+}
+
+/** 끼니 종류에 맞는지: 점심은 술집 빼고, 저녁은 식당 전부, 술은 술집만, 카페는 카페·빵집·디저트만 */
+export function matchesKind(r: Restaurant, kind: Kind): boolean {
+  const cafe = isCafeCategory(r.category);
+  if (kind === '카페') return cafe;
+  if (cafe) return false;
+  const drink = r.tags.includes(DRINK_TAG);
+  if (kind === '술') return drink;
+  if (kind === '점심') return !drink;
+  return true;
+}
 
 export interface Conditions {
-  /** 밥이면 카페·빵집·디저트 제외, 카페면 그것만 */
+  /** 점심·저녁·술·카페 (matchesKind 참고) */
   kind: Kind;
   area: string;
   companion: Companion;
@@ -52,7 +69,7 @@ export function filterCandidates(data: AppData, c: Conditions): Restaurant[] {
   return data.restaurants.filter(
     (r) =>
       r.area === c.area &&
-      isCafeCategory(r.category) === (c.kind === '카페') &&
+      matchesKind(r, c.kind) &&
       (c.priceLevel === null || priceLevelOf(r) === undefined || priceLevelOf(r) === c.priceLevel) &&
       r.goodFor.includes(c.companion) &&
       c.tags.every((t) => r.tags.includes(t)) &&
