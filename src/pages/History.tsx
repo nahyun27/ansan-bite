@@ -8,12 +8,12 @@ import { StarRating } from '../components/StarRating';
 import { InstallSection } from '../components/InstallGuide';
 
 export function HistoryPage({ data, actions, sync }: { data: AppData; actions: Actions; sync: Sync }) {
-  const isShared = !!sync.nick && sync.status !== 'local';
+  const isShared = !!sync.nick && sync.status !== 'local' && !sync.guest;
   const [copied, setCopied] = useState(false);
 
   const shareLink = async () => {
     const url = window.location.origin;
-    const text = 'Ansan Bite — 같이 쓰는 안산 맛집 목록. 비밀번호는 따로 알려줄게!';
+    const text = 'Ansan Bite — 같이 쓰는 안산 맛집 목록. 들어와서 구경하고, 가입하면 맛집 추가도 돼!';
     try {
       if (navigator.share) return await navigator.share({ title: 'Ansan Bite', text, url });
       await navigator.clipboard.writeText(url);
@@ -166,12 +166,12 @@ export function HistoryPage({ data, actions, sync }: { data: AppData; actions: A
             <span><b>{sync.nick}</b>(으)로 들어와 있어요</span>
             <span className={`flex items-center gap-1 text-xs ${sync.status === 'synced' ? 'text-green-600' : sync.status === 'syncing' ? 'text-stone-500' : 'text-amber-600'}`}>
               {sync.status === 'offline' ? <CloudOff className="size-3.5" /> : <Cloud className="size-3.5" />}
-              {{ syncing: '저장 중', synced: '모두 저장됨', offline: '오프라인', error: '저장 오류', checking: '확인 중', local: '', login: '' }[sync.status]}
+              {{ syncing: '저장 중', synced: '모두 저장됨', offline: '오프라인', error: '저장 오류', checking: '확인 중', local: '', guest: '' }[sync.status]}
               {sync.pendingCount > 0 && ` · ${sync.pendingCount}개 대기`}
             </span>
           </div>
           {sync.error && sync.status === 'error' && <p className="text-xs text-red-500">{sync.error}</p>}
-          <p className="text-xs text-stone-500">식당 목록은 비밀번호를 아는 모두와 공유돼요. 별점·먹은 기록은 닉네임별로 따로예요.</p>
+          <p className="text-xs text-stone-500">식당 목록은 누구나 볼 수 있고, 가입한 사람이 같이 채워요. 별점은 닉네임과 함께 보이고, 먹은 기록은 나만 봐요.</p>
           <div className="flex gap-2">
             <button onClick={shareLink} className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white">
               <Share2 className="size-4" /> {copied ? '링크 복사됨' : '링크 보내기'}
@@ -182,13 +182,22 @@ export function HistoryPage({ data, actions, sync }: { data: AppData; actions: A
           </div>
           <button
             onClick={() =>
-              confirm(sync.pendingCount ? `아직 저장 안 된 변경 ${sync.pendingCount}개가 사라져요. 그래도 나갈까요?` : '이 기기에서 나갈까요? 공유 목록은 그대로 남아요.') &&
+              confirm(sync.pendingCount ? `아직 저장 안 된 변경 ${sync.pendingCount}개가 사라져요. 그래도 로그아웃할까요?` : '로그아웃할까요? 내 별점·기록은 서버에 남아 있어서 다시 로그인하면 돌아와요.') &&
               sync.logout()
             }
             className="flex w-full items-center justify-center gap-1 pt-1 text-xs text-stone-400"
           >
-            <LogOut className="size-3.5" /> 이 기기에서 나가기
+            <LogOut className="size-3.5" /> 로그아웃
           </button>
+        </section>
+      )}
+
+      {sync.guest && sync.status !== 'checking' && (
+        <section className="space-y-2 rounded-2xl bg-white p-4 shadow-sm">
+          <h2 className="flex items-center gap-1.5 font-bold"><Users className="size-4" /> 같이 쓰기</h2>
+          <p className="text-sm text-stone-600">지금은 구경 중이에요. 가입하면 맛집을 추가하고 별점을 남길 수 있어요. 먹은 기록도 다른 기기와 이어져요.</p>
+          <p className="text-xs text-stone-400">가입 전 먹은 기록은 이 기기에만 저장돼요. 가입하면 같이 올라가요.</p>
+          <button onClick={() => sync.openAuth()} className="w-full rounded-xl bg-orange-500 py-2.5 text-sm font-semibold text-white">가입·로그인</button>
         </section>
       )}
 
@@ -217,7 +226,7 @@ export function HistoryPage({ data, actions, sync }: { data: AppData; actions: A
           />
         </div>
         {message && <p className="text-sm">{message}</p>}
-        {!isShared && (
+        {sync.status === 'local' && (
           <button
             onClick={() => confirm('모든 식당과 기록을 지울까요? 되돌릴 수 없어요. 먼저 내보내기로 백업해 두세요.') && actions.resetAll()}
             className="w-full pt-2 text-xs text-red-400"

@@ -5,7 +5,9 @@ import { loadData, saveData } from './storage';
 import { newId, toDateStr } from './utils';
 import {
   applyOps,
+  authenticate,
   fetchSnapshot,
+  logoutRemote,
   initialUploadOps,
   loadMeta,
   loadOutbox,
@@ -30,10 +32,11 @@ export type Sync = ReturnType<typeof useAppData>['sync'];
 /**
  * - checking: 서버 확인 중 (그동안은 이 기기 사본으로 동작)
  * - local: 서버 저장소가 없음 → 이 기기에만 저장
- * - login: 공유 비밀번호·닉네임 필요
- * - syncing / synced / offline / error: 공유 모드
+ * - guest: 로그인 안 함 → 공유 목록 구경만 (먹은 기록은 이 기기에만)
+ * - syncing / synced / offline / error: 로그인한 공유 모드
  */
-export type SyncStatus = 'checking' | 'local' | 'login' | 'syncing' | 'synced' | 'offline' | 'error';
+export type SyncStatus = 'checking' | 'local' | 'guest' | 'syncing' | 'synced' | 'offline' | 'error';
+export type AuthMode = 'signup' | 'login';
 
 const EMPTY_SNAPSHOT = { restaurants: [], areas: [], stars: {}, personal: null, personalVersion: 0 };
 
@@ -42,11 +45,20 @@ export function useAppData() {
   const dataRef = useRef(data);
   dataRef.current = data;
 
-  const [session, setSession] = useState<Session | null>(loadSession);
+  const [stored] = useState(loadSession);
+  const [session, setSession] = useState<Session | null>(stored.session);
   const sessionRef = useRef(session);
   sessionRef.current = session;
+  /** 예전 공유 비밀번호로 쓰던 닉네임 (가입할 때 자동으로 확인) */
+  const legacy = useRef(stored.legacy);
 
   const [status, setStatus] = useState<SyncStatus>('checking');
+  const statusRef = useRef(status);
+  statusRef.current = status;
+  /** 가입·로그인 창 (null = 닫힘) */
+  const [auth, setAuth] = useState<{ reason?: string } | null>(null);
+  /** 다른 사람이 추가한 식당도 지울 수 있는 관리자인지 (서버가 알려줌) */
+  const [admin, setAdmin] = useState(false);
   const [error, setError] = useState('');
   const [pendingCount, setPendingCount] = useState(() => loadOutbox().length);
 
@@ -72,8 +84,14 @@ export function useAppData() {
       shared.current = false;
       setStatus('local');
     } else if (r.kind === 'unauthorized') {
-      setError(r.message);
-      setStatus('login');
+      // 로그인이 만료됨 → 구경 모드로 돌아가고 다시 로그인하게
+      saveSession(null);
+      sessionRef.current = null;
+      setSession(null);
+      shared.current = false;
+      setError('');
+      setStatus('guest');
+      setAuth({ reason: r.message || '다시 로그인해 주세요.' });
     } else if (r.kind === 'offline') {
       setStatus('offline');
     } else {
@@ -150,8 +168,18 @@ export function useAppData() {
       if (r.kind === 'conflict') return;
       return fail(r);
     }
-    if (!s) return setStatus('login');
     const snap = r.value;
+    setAdmin(!!(snap as { admin?: boolean }).admin);
+    if (!s) {
+      // 로그인 안 함: 공유 목록만 받아서 보여줌 (먹은 기록은 이 기기 것 그대로)
+      shared.current = false;
+      const local = dataRef.current;
+      const next = { ...mergeSnapshot(local, snap, '', []), visits: local.visits };
+      dataRef.current = next;
+      setData(next);
+      setError('');
+      return setStatus('guest');
+    }
     shared.current = true;
 
     // 이 기기에서 처음 로그인: 서버에 없는 식당·지역·별점을 올림
@@ -205,21 +233,34 @@ export function useAppData() {
     return () => window.clearTimeout(t);
   }, [data.visits, flush]);
 
-  /** 공유 부분 변경: 이 기기에 바로 반영 + 서버로 보낼 목록에 추가 */
+  /** 공유 목록을 바꿀 수 있는지 (로그인했거나, 서버 없이 이 기기에서만 쓸 때) */
+  const canEdit = () => !!sessionRef.current || statusRef.current === 'local';
+
+  /** 바꾸기 전에 확인: 로그인 안 했으면 가입 창을 띄우고 false */
+  const requireAccount = useCallback((reason?: string): boolean => {
+    if (canEdit()) return true;
+    setAuth({ reason: reason ?? '식당 추가·별점은 가입하면 할 수 있어요.' });
+    return false;
+  }, []);
+
+  /** 공유 부분 변경: 이 기기에 바로 반영 + 서버로 보낼 목록에 추가.
+   *  로그인 안 했으면 가입 창을 띄우고 아무것도 안 함 (localOnly면 이 기기에만 반영) */
   const apply = useCallback(
-    (ops: Op[], extra?: (d: AppData) => AppData) => {
+    (ops: Op[], extra?: (d: AppData) => AppData, localOnly = false): boolean => {
+      if (!localOnly && !requireAccount()) return false;
       const nick = sessionRef.current?.nick ?? 'me';
       setData((d) => {
         const n = applyOps(d, ops, nick);
         return extra ? extra(n) : n;
       });
-      if (shared.current && ops.length) {
+      if (shared.current && ops.length && !localOnly) {
         outbox.current.push(...ops);
         persistOutbox();
         void flush();
       }
+      return true;
     },
-    [flush],
+    [flush, requireAccount],
   );
 
   // ---- 동작 ----
@@ -264,7 +305,7 @@ export function useAppData() {
       const d = dataRef.current;
       const prev = d.restaurants.find((x) => x.id === r.id);
       const withAuthor = prev ? r : { ...r, addedBy: r.addedBy ?? sessionRef.current?.nick };
-      apply(restaurantOps(withAuthor, prev, d.areas));
+      return apply(restaurantOps(withAuthor, prev, d.areas));
     },
     [apply],
   );
@@ -277,7 +318,7 @@ export function useAppData() {
         if (!areas.includes(r.area)) areas.push(r.area);
         return o;
       });
-      apply(ops);
+      return apply(ops);
     },
     [apply],
   );
@@ -288,7 +329,8 @@ export function useAppData() {
       const r = dataRef.current.restaurants.find((x) => x.id === id);
       if (!r) return;
       const next = { ...r, coords, coordsSource: source, ...Object.fromEntries(Object.entries(extra ?? {}).filter(([, v]) => v !== undefined)) };
-      apply([{ op: 'upsertRestaurant', restaurant: sharedPart(next) }]);
+      // 자동으로 찾은 위치는 로그인 안 했으면 이 기기 화면에만 (가입 창은 안 띄움)
+      apply([{ op: 'upsertRestaurant', restaurant: sharedPart(next) }], undefined, source !== 'manual' && !canEdit());
     },
     [apply],
   );
@@ -299,7 +341,7 @@ export function useAppData() {
 
   const deleteRestaurant = useCallback(
     (id: string) => {
-      apply([{ op: 'deleteRestaurant', id }], (d) => ({ ...d, visits: d.visits.filter((v) => v.restaurantId !== id) }));
+      return apply([{ op: 'deleteRestaurant', id }], (d) => ({ ...d, visits: d.visits.filter((v) => v.restaurantId !== id) }));
     },
     [apply],
   );
@@ -324,6 +366,7 @@ export function useAppData() {
   /** 백업 불러오기: 이 기기 데이터를 바꾸고, 공유 모드면 식당·별점을 공유 목록에 올림 (지우지는 않음) */
   const replaceData = useCallback(
     (next: AppData) => {
+      if (!requireAccount('백업을 불러오려면 로그인해 주세요.')) return;
       setData(next);
       if (shared.current && sessionRef.current) {
         outbox.current.push(...initialUploadOps(next, EMPTY_SNAPSHOT, sessionRef.current.nick));
@@ -331,7 +374,7 @@ export function useAppData() {
         void flush();
       }
     },
-    [flush],
+    [flush, requireAccount],
   );
 
   /** 이 기기에서만 쓸 때(공유 모드 아님) 전부 지우기 */
@@ -339,30 +382,33 @@ export function useAppData() {
 
   // ---- 로그인 ----
 
-  /** 공유 비밀번호·닉네임 확인 후 저장. 실패하면 이유를 돌려줌 */
+  /** 가입·로그인. 실패하면 이유(예전 닉네임이면 code: legacy)를 돌려줌 */
   const login = useCallback(
-    async (passcode: string, nick: string): Promise<string | null> => {
-      const s = { passcode, nick: nick.trim() };
-      const r = await fetchSnapshot(s);
-      if (r.kind === 'unauthorized') return r.message || '비밀번호가 맞지 않아요.';
-      if (r.kind === 'offline') return '인터넷 연결을 확인해 주세요.';
-      if (r.kind === 'error') return r.message;
-      if (r.kind === 'disabled') return '서버 저장소가 아직 설정되지 않았어요.';
+    async (mode: AuthMode, nick: string, password: string, legacyPasscode?: string): Promise<{ message: string; code?: string } | null> => {
+      const n = nick.trim();
+      // 이 기기에 예전 공유 비밀번호가 남아 있으면 같은 닉네임 가입 때 자동으로 확인
+      const oldPass = legacyPasscode || (legacy.current?.nick === n ? legacy.current.passcode : undefined);
+      const r = await authenticate(mode, n, password, mode === 'signup' ? oldPass : undefined);
+      if (!r.ok) return { message: r.message, code: r.code };
       // 닉네임마다 먹은 기록이 따로라 동기화 정보는 새로 시작
       meta.current = { personalVersion: 0, initialized: false };
       persistMeta();
-      saveSession(s);
-      sessionRef.current = s;
-      setSession(s);
+      saveSession(r.session);
+      legacy.current = null;
+      sessionRef.current = r.session;
+      setSession(r.session);
       setError('');
+      setAuth(null);
       await pull();
       return null;
     },
     [pull],
   );
 
-  /** 이 기기에서 나가기 (이 기기의 사본은 남음) */
+  /** 이 기기에서 나가기: 내 별점·먹은 기록은 이 기기에서 지우고 구경 모드로 (서버에는 남음) */
   const logout = useCallback(() => {
+    const s = sessionRef.current;
+    if (s) void logoutRemote(s);
     saveSession(null);
     sessionRef.current = null;
     setSession(null);
@@ -371,8 +417,12 @@ export function useAppData() {
     persistOutbox();
     meta.current = { personalVersion: 0, initialized: false };
     saveMeta(null);
-    setStatus('login');
-  }, []);
+    const next = { ...dataRef.current, visits: [], restaurants: dataRef.current.restaurants.map((r) => ({ ...r, stars: undefined })) };
+    dataRef.current = next;
+    setData(next);
+    setStatus('guest');
+    void pull();
+  }, [pull]);
 
   const retry = useCallback(() => void pull(), [pull]);
 
@@ -383,7 +433,20 @@ export function useAppData() {
       saveRestaurant, addRestaurants, deleteRestaurant,
       addArea, removeArea, setAreaCenter, setLocation,
       replaceData, resetAll,
+      /** 로그인 안 했으면 가입 창을 띄우고 false */
+      requireAccount,
+      /** 이 식당을 지울 수 있는지: 직접 추가했거나 관리자 */
+      canDelete: (r: Restaurant) => status === 'local' || (!!session && (admin || !r.addedBy || r.addedBy === session.nick)),
     },
-    sync: { status, error, nick: session?.nick, pendingCount, login, logout, retry },
+    sync: {
+      status, error, nick: session?.nick, pendingCount, login, logout, retry,
+      /** 로그인 안 하고 구경 중 */
+      guest: status === 'guest' || (!session && status !== 'local'),
+      requireAccount,
+      auth,
+      openAuth: (reason?: string) => setAuth({ reason }),
+      closeAuth: () => setAuth(null),
+      legacyNick: legacy.current?.nick,
+    },
   };
 }

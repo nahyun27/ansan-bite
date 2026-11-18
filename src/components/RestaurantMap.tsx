@@ -75,7 +75,7 @@ export function RestaurantMap({ restaurants, actions, onEdit, active }: Props) {
   useEffect(() => {
     const a = adapter.current;
     if (!a) return;
-    a.setPins(placed, { onEdit: (r) => onEditRef.current(r), onMove: (r) => setPicking(r) });
+    a.setPins(placed, { onEdit: (r) => onEditRef.current(r), onMove: (r) => actionsRef.current.requireAccount() && setPicking(r) });
     if (!fitted.current && placed.length) {
       a.fit(placed);
       fitted.current = true;
@@ -167,6 +167,7 @@ export function RestaurantMap({ restaurants, actions, onEdit, active }: Props) {
                 </span>
                 <button
                   onClick={() => {
+                    if (!actions.requireAccount()) return;
                     setPicking(r);
                     box.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                   }}

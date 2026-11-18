@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Beer, Coffee, FerrisWheel, Moon, RefreshCw, Sparkles, Sun, UtensilsCrossed } from 'lucide-react';
+import { Beer, Coffee, UserRound, FerrisWheel, Moon, RefreshCw, Sparkles, Sun, UtensilsCrossed } from 'lucide-react';
 import type { WheelCandidate } from '../lib/wheel';
 import { newId } from '../lib/utils';
 import type { AppData, Companion, PriceLevel } from '../types';
@@ -31,11 +31,13 @@ interface Props {
   actions: Actions;
   onAddRestaurant: () => void;
   nick?: string;
+  /** 로그인 안 했을 때만: 가입·로그인 창 열기 */
+  onLogin?: () => void;
   /** 추천 결과를 돌림판 후보로 넘기고 돌림판 탭으로 */
   onSendToWheel: (c: WheelCandidate[]) => void;
 }
 
-export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel, nick }: Props) {
+export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel, nick, onLogin }: Props) {
   const [cond, setCond] = useState<Conditions>({
     kind: defaultKind(),
     area: data.areas.includes(DEFAULT_AREA) ? DEFAULT_AREA : data.areas[0] ?? '',
@@ -140,7 +142,14 @@ export function TodayPage({ data, actions, onAddRestaurant, onSendToWheel, nick 
   return (
     <div className="space-y-5">
       <header>
-        <h1 className="text-sm font-black tracking-wide text-orange-500">Ansan Bite</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-sm font-black tracking-wide text-orange-500">Ansan Bite</h1>
+          {onLogin && (
+            <button onClick={onLogin} className="flex items-center gap-1 rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-stone-600 shadow-sm">
+              <UserRound className="size-3.5" /> 가입·로그인
+            </button>
+          )}
+        </div>
         <p className="mt-1 text-2xl font-bold">오늘은 어디서 먹지?</p>
         <p className="mt-1 text-sm text-stone-500">지금 상황에 맞는 안산 맛집 3곳을 골라드려요.</p>
       </header>

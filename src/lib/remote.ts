@@ -6,6 +6,12 @@ import { migrateCategories, migrateMenus } from './storage';
 export type { Snapshot };
 
 export interface Session {
+  token: string;
+  nick: string;
+}
+
+/** 예전 공유 비밀번호 방식으로 저장된 로그인 (가입할 때 예전 닉네임 확인용으로만 씀) */
+export interface LegacySession {
   passcode: string;
   nick: string;
 }
@@ -29,7 +35,7 @@ export interface SyncMeta {
 export type Result<T> =
   | { kind: 'ok'; value: T }
   | { kind: 'disabled' } // 서버 저장소가 설정 안 됨 → 로컬 저장만
-  | { kind: 'unauthorized'; message: string }
+  | { kind: 'unauthorized'; message: string; code?: string }
   | { kind: 'offline' }
   | { kind: 'error'; message: string }
   | { kind: 'conflict'; value: { personal: { visits: Visit[] } | null; version: number } };
@@ -53,7 +59,13 @@ const write = (key: string, value: unknown) => {
   }
 };
 
-export const loadSession = () => read<Session | null>(KEYS.session, null);
+/** 저장된 로그인. 예전 방식(공유 비밀번호)이면 session은 없고 legacy로 */
+export function loadSession(): { session: Session | null; legacy: LegacySession | null } {
+  const raw = read<(Partial<Session> & Partial<LegacySession>) | null>(KEYS.session, null);
+  if (raw?.token && raw.nick) return { session: { token: raw.token, nick: raw.nick }, legacy: null };
+  if (raw?.passcode && raw.nick) return { session: null, legacy: { passcode: raw.passcode, nick: raw.nick } };
+  return { session: null, legacy: null };
+}
 export const saveSession = (s: Session | null) => write(KEYS.session, s);
 export const loadOutbox = () => read<Op[]>(KEYS.outbox, []);
 export const saveOutbox = (ops: Op[]) => write(KEYS.outbox, ops);
@@ -68,8 +80,7 @@ async function request<T>(session: Session | null, init: RequestInit): Promise<R
       ...init,
       headers: {
         'content-type': 'application/json',
-        'x-ansan-passcode': encodeURIComponent(session?.passcode ?? ''),
-        'x-ansan-nick': encodeURIComponent(session?.nick ?? ''),
+        ...(session ? { authorization: `Bearer ${session.token}` } : {}),
       },
     });
   } catch {
@@ -79,10 +90,35 @@ async function request<T>(session: Session | null, init: RequestInit): Promise<R
   if (res.ok) return { kind: 'ok', value: body as T };
   if (res.status === 503 && body?.disabled) return { kind: 'disabled' };
   if (res.status === 404) return { kind: 'disabled' }; // API가 없는 환경
-  if (res.status === 401 || (res.status === 400 && !session?.nick)) return { kind: 'unauthorized', message: body?.error ?? '' };
+  if (res.status === 401) return { kind: 'unauthorized', message: body?.error ?? '', code: body?.code };
   if (res.status === 409) return { kind: 'conflict', value: body };
   return { kind: 'error', message: body?.error ?? `서버 오류 (${res.status})` };
 }
+
+/** 가입·로그인: 성공하면 토큰, 실패하면 이유(code: taken·legacy 등) */
+export async function authenticate(
+  mode: 'signup' | 'login',
+  nick: string,
+  password: string,
+  legacyPasscode?: string,
+): Promise<{ ok: true; session: Session } | { ok: false; message: string; code?: string }> {
+  let res: Response;
+  try {
+    res = await fetch('/api/data', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ op: mode, nick, password, legacyPasscode }),
+    });
+  } catch {
+    return { ok: false, message: '인터넷 연결을 확인해 주세요.' };
+  }
+  const body = await res.json().catch(() => null);
+  if (res.ok && body?.token) return { ok: true, session: { token: body.token, nick: body.nick } };
+  if (res.status === 404 || (res.status === 503 && body?.disabled)) return { ok: false, message: '서버 저장소가 아직 설정되지 않았어요.' };
+  return { ok: false, message: body?.error ?? `서버 오류 (${res.status})`, code: body?.code };
+}
+
+export const logoutRemote = (session: Session) => request(session, { method: 'POST', body: JSON.stringify({ op: 'logout' }) });
 
 export const fetchSnapshot = (session: Session | null) => request<Snapshot>(session, { method: 'GET' });
 export const sendOp = (session: Session, op: Op) => request<{ ok: true }>(session, { method: 'POST', body: JSON.stringify(op) });

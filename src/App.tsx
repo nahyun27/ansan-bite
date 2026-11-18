@@ -6,7 +6,7 @@ import { useAppData } from './lib/useAppData';
 import { TodayPage } from './pages/Today';
 import { RestaurantsPage } from './pages/Restaurants';
 import { HistoryPage } from './pages/History';
-import { LoginScreen } from './components/LoginScreen';
+import { AuthSheet } from './components/AuthSheet';
 import { SyncBadge } from './components/SyncBadge';
 
 type Tab = 'today' | 'wheel' | 'list' | 'history';
@@ -33,11 +33,11 @@ export default function App() {
   const clearShare = useCallback(() => setIncomingShare(undefined), []);
   const [wheel, setWheel] = useState<WheelCandidate[]>([]);
 
-  if (sync.status === 'login') return <LoginScreen onLogin={sync.login} message={sync.error} />;
-
   return (
     <div className="mx-auto flex min-h-full max-w-md flex-col">
       <SyncBadge sync={sync} onClick={() => setTab('history')} />
+      {sync.auth && <AuthSheet sync={sync} />}
+
       <main className="flex-1 px-4 pt-[max(env(safe-area-inset-top),1.25rem)] pb-28">
         {/* 탭 전환해도 상태(추천 결과 등)가 유지되도록 모두 마운트해 두고 숨김 처리 */}
         <div hidden={tab !== 'today'}><TodayPage
@@ -45,6 +45,7 @@ export default function App() {
             actions={actions}
             onAddRestaurant={() => setTab('list')}
             nick={sync.nick}
+            onLogin={sync.guest && sync.status !== 'checking' ? () => sync.openAuth() : undefined}
             onSendToWheel={(c) => {
               setWheel(c);
               setTab('wheel');

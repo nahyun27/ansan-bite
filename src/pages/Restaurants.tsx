@@ -102,13 +102,13 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed,
           <h1 className="text-2xl font-bold">내 식당</h1>
           <p className="text-sm text-stone-500">{data.restaurants.length}곳 저장됨</p>
         </div>
-        <button onClick={() => setEditing({ kind: 'new', pasteFirst: false })} className="flex items-center gap-1 rounded-full bg-orange-500 px-4 py-2 text-sm font-bold text-white">
+        <button onClick={() => actions.requireAccount() && setEditing({ kind: 'new', pasteFirst: false })} className="flex items-center gap-1 rounded-full bg-orange-500 px-4 py-2 text-sm font-bold text-white">
           <Plus className="size-4" /> 추가
         </button>
       </header>
 
       <button
-        onClick={() => setEditing({ kind: 'new', pasteFirst: true })}
+        onClick={() => actions.requireAccount() && setEditing({ kind: 'new', pasteFirst: true })}
         className="w-full rounded-2xl border-2 border-dashed border-orange-300 bg-white px-4 py-3 text-left active:bg-orange-50"
       >
         <div className="flex items-center gap-1.5 text-sm font-bold text-orange-600"><Link2 className="size-4" /> 지도 링크로 추가</div>
@@ -116,7 +116,7 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed,
       </button>
       {KAKAO_IMPORT_ENABLED && (
         <button
-          onClick={() => setImporting(true)}
+          onClick={() => actions.requireAccount() && setImporting(true)}
           className="flex w-full items-center justify-center gap-1.5 rounded-2xl border border-stone-200 bg-white py-2.5 text-sm font-semibold text-stone-600"
         >
           <Search className="size-4" /> 카카오맵에서 검색해서 가져오기
@@ -225,7 +225,7 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed,
           onSetCenter={actions.setAreaCenter}
           onClose={() => setImporting(false)}
           onAdd={(list) => {
-            actions.addRestaurants(list);
+            if (!actions.addRestaurants(list)) return;
             setImporting(false);
             setNeedsOnly(true);
             setNotice(`${list.length}곳을 추가했어요. 눌러서 대표 메뉴·가격·누구랑 갈지 채워주세요.`);
@@ -245,18 +245,17 @@ export function RestaurantsPage({ data, actions, incomingShare, onShareConsumed,
           defaultArea={area !== ALL ? area : DEFAULT_AREA}
           onClose={() => setEditing(null)}
           onSave={(r) => {
-            actions.saveRestaurant(r);
+            if (!actions.saveRestaurant(r)) return; // 로그인 안 했으면 가입 창이 뜨고 입력한 내용은 그대로
             setNotice('');
             setEditing(null);
           }}
           onDelete={
-            editing.kind === 'new'
+            editing.kind === 'new' || !actions.canDelete(editing.restaurant)
               ? undefined
               : () => {
                   const r = editing.restaurant;
                   if (confirm(nick ? `'${r.name}'을(를) 같이 쓰는 목록에서 지울까요? 모두의 목록에서 사라져요.` : `'${r.name}'을(를) 삭제할까요? 이 식당의 방문 기록도 함께 지워져요.`)) {
-                    actions.deleteRestaurant(r.id);
-                    setEditing(null);
+                    if (actions.deleteRestaurant(r.id)) setEditing(null);
                   }
                 }
           }

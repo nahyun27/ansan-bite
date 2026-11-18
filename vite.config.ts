@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 import { handlePreview } from './api/preview';
-import { handleData, storeFromEnv } from './api/data';
+import { envFrom, handleData, storeFromEnv } from './api/data';
 
 function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -21,7 +21,7 @@ function localApi(): Plugin {
   let env: Record<string, string> = {};
   const routes: Record<string, (req: Request) => Promise<Response>> = {
     '/api/preview': (req) => handlePreview(req),
-    '/api/data': (req) => handleData(req, env.APP_PASSCODE, storeFromEnv(env)),
+    '/api/data': (req) => handleData(req, envFrom(env), storeFromEnv(env)),
   };
   const middleware = async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     const url = new URL((req as IncomingMessage & { originalUrl?: string }).originalUrl ?? req.url ?? '/', 'http://localhost');
